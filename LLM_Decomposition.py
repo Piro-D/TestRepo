@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 MAX_DOCUMENT_CHARS = 4000
 DEFAULT_MODEL = "phi3:mini"
-DEFAULT_NUM_PREDICT = 500
+DEFAULT_NUM_PREDICT = 1500
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.environ["OLLAMA_MODELS"] = MODEL_DIR
@@ -103,7 +103,7 @@ def extract_json_payload(text: str):
                 except json.JSONDecodeError:
                     break
 
-    raise json.JSONDecodeError('No valid JSON payload found', text, 0)
+    raise json.JSONDecodeError(f'No valid JSON payload found. Raw output:\n{text}', text, 0)
 
 
 # Function to call LLM for task decomposition
@@ -114,10 +114,22 @@ def generate_tasks(document_text: str, model: str = DEFAULT_MODEL) -> tuple:
     """
     # Shortened, more direct prompt to reduce inference time
     system_prompt = (
-        "You are a task decomposition assistant. Break down the project into subtasks."
-        "Output ONLY a valid JSON list. Each task must have: "
-        "'task_name', 'task_complexity' (1-5), 'task_type' (coding/writing/reading/problem solving/review/research/general), "
-        "'general_estimation' (hours). No explanations, no extra text."
+        
+        "You are an academic task decomposition assistant, in charge of breaking down projects into smaller tasks."
+        "You will receive a project description, and you must break the project down into tasks and output ONLY a valid JSON list of those tasks."
+        "The output must be a valid JSON list of tasks, and nothing else. Do not include any explanations or text outside the JSON.\n"
+
+        "The JSON must contain the following information related to each task:"
+        "1. 'task_name': A descriptive & informative name for the task. "
+        "2. 'task_complexity': A value from 1-5 related to the difficulty of the task. "
+        "3. 'task_type': A category of the task, where the category is STRICTLY to be one of these [coding , writing , reading , problem solving , review , research , general]."
+        "4. 'general_estimation': An estimation of how long the task will take in hours for an undergraduate student.\n"
+
+        "Focus only on tasks that are necessary for the completion of the project."
+        "Do NOT include any task types that are not in the specified list."
+        "Do NOT include 2 or more task types for a single task"
+
+        
     )
 
     if len(document_text) > MAX_DOCUMENT_CHARS:
@@ -146,12 +158,28 @@ def generate_tasks(document_text: str, model: str = DEFAULT_MODEL) -> tuple:
         if isinstance(parsed, dict) and 'tasks' in parsed:
             return parsed['tasks'], elapsed
         return parsed, elapsed
+    
     except Exception as e:
         elapsed = time.perf_counter() - start_time
         raw_text = response['message']['content'] if 'response' in locals() and isinstance(response, dict) else str(response) if 'response' in locals() else ''
+        
+        print("\n" + "="*60)
+        print("❌ ERROR: Invalid JSON from model")
+        print("="*60)
+        print(f"Time elapsed: {elapsed:.3f}s")
+        print("\nRaw model output:")
+        print("-" * 60)
+        print(raw_text)
+        print("-" * 60)
+        print("\nError details:")
+        print(str(e))
+        print("="*60 + "\n")
+        
         raise ValueError(
-            f"Model output was not valid JSON after {elapsed:.3f}s"
+            f"Model output was not valid JSON after {elapsed:.3f}s. See output above for raw response."
         )
+    
+        
 
 
 # Main Project Decomposition Function (Call this function to run the entire decomposition process)
@@ -189,7 +217,7 @@ if __name__ == "__main__":
         # Ensure model is downloaded once at startup
         ensure_model(DEFAULT_MODEL)
         
-        file_path = r".\TestDocuments\document.pdf"
+        file_path = r".\TestDocuments\document3.docx"
         result = process_document(file_path)
         print(json.dumps(result, indent=4))
     except Exception as e:
