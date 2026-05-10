@@ -30,7 +30,7 @@ def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
     print(f"\nProcessing document: {document_path}")
     decomposition_result = process_document(document_path)
     
-    if decomposition_result["status"] != "success":
+    if decomposition_result.get("status") != "success":
         return decomposition_result
     
     tasks = decomposition_result.get("tasks", [])
@@ -48,11 +48,17 @@ def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
     print("RESULTS")
     print("="*60)
     for i, task in enumerate(estimated_tasks, 1):
+        # 🛡️ DEFENSIVE GETTERS: This prevents the app from crashing if the LLM makes a typo!
+        # I even added a fallback just in case it explicitly types 'task_nameiname' again.
+        name = task.get('task_name', task.get('task_nameiname', 'Unnamed Task'))
         complexity = task.get('task_complexity', '?')
+        task_type = task.get('task_type', 'general')
+        llm_est = task.get('general_estimation', '?')
         duration = task.get('estimated_duration_minutes', 'N/A')
-        print(f"\n{i}. {task['task_name']}")
-        print(f"   Type: {task['task_type']} | Complexity: {complexity}/5")
-        print(f"   LLM Estimate: {task['general_estimation']}h | ⏱️ ADHD Duration: {duration} min")
+        
+        print(f"\n{i}. {name}")
+        print(f"   Type: {task_type} | Complexity: {complexity}/5")
+        print(f"   LLM Estimate: {llm_est}h | ⏱️ ADHD Duration: {duration} min")
     
     print("\n" + "="*60)
     print(f"📈 TOTAL PROJECT TIME (ADHD): {total_minutes:.0f} minutes ({total_minutes/60:.1f} hours)")
