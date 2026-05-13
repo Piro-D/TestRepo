@@ -14,7 +14,7 @@ from io import StringIO
 BASE_DIR = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 MAX_DOCUMENT_CHARS = 4000
-DEFAULT_MODEL = "phi3:mini"
+DEFAULT_MODEL = "qwen3:8B" 
 DEFAULT_NUM_PREDICT = 1500
 
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -110,25 +110,26 @@ def extract_json_payload(text: str):
 def generate_tasks(document_text: str, model: str = DEFAULT_MODEL) -> tuple:
     """
     Generate tasks from document text using a faster model.
-    Use phi2 (2.7B params) by default for speed.
     """
-    # Shortened, more direct prompt to reduce inference time
+    
     system_prompt = (
         
-        "You are an academic task decomposition assistant, in charge of breaking down projects into smaller tasks."
-        "You will receive a project description, and you must break the project down into tasks and output ONLY a valid JSON list of those tasks."
-        "The output must be a valid JSON list of tasks, and nothing else. Do not include any explanations or text outside the JSON.\n"
+        "You are an academic task decomposition assistant in charge of breaking down projects into granular tasks"
+        "You will receive a project description, and you must break the project down into tasks and output ONLY a valid JSON list of those tasks and nothign else.\n"
+        "Do not further decompose tasks into subtasks.\n"
+        "Only Focus on the project itself, and ignore any irrelevant information in the document that is not related to the completion of the project, such as Learning Outcomes and Assesment Criterias.\n"
 
-        "The JSON must contain the following information related to each task:"
-        "1. 'task_name': A descriptive & informative name for the task. "
-        "2. 'task_complexity': A value from 1-5 related to the difficulty of the task. "
-        "3. 'task_type': A category of the task, where the category is STRICTLY to be one of these [coding , writing , reading , problem solving , review , research , general]."
-        "4. 'general_estimation': An estimation of how long the task will take in hours for an undergraduate student.\n"
+        "The JSON must contain the following information related to each task, and STRICTLY nothing else:"
+        "1. 'task_name' : A descriptive name for the task\n "
+        "2. 'task_complexity' : A scale from 1 - 5 related to the difficulty of the task\n "
+        "3. 'task_type' : A category of the task, where the category must be one of these (coding, writing, reading, problem solving, review, research, general)\n "
+        "4. 'general_estimation' : An estimation of how long the task will take in minutes for an undergraduate computer sceince student.\n"
 
+
+        "Submition is not to be included as tasks"
+        "Do not add any other attributes besides the mentioned attributes, and ensure that attributes are named correctly and consistently"
+        "The output must be a valid JSON list of tasks, and nothing else. Do not include any explanations or text outside the JSON. Do not hallucinate any information"
         "Focus only on tasks that are necessary for the completion of the project."
-        "Do NOT include any task types that are not in the specified list."
-        "Do NOT include 2 or more task types for a single task"
-
         
     )
 
@@ -181,7 +182,6 @@ def generate_tasks(document_text: str, model: str = DEFAULT_MODEL) -> tuple:
     
         
 
-
 # Main Project Decomposition Function (Call this function to run the entire decomposition process)
 def process_document(file_path: str) -> dict:
     try:
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         # Ensure model is downloaded once at startup
         ensure_model(DEFAULT_MODEL)
         
-        file_path = r".\TestDocuments\document3.docx"
+        file_path = r".\TestDocuments\document3.pdf"
         result = process_document(file_path)
         print(json.dumps(result, indent=4))
     except Exception as e:
@@ -226,49 +226,5 @@ if __name__ == "__main__":
             "message": str(e)
         }
         print(json.dumps(result, indent=4))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
