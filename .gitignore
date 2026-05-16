@@ -3,4 +3,3 @@ __pycache__/
 models/
 .venv
 *.log
-credentials.json
