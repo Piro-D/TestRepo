@@ -156,14 +156,19 @@ def estimate_tasks_from_llm(tasks_list: list, buffer=1.2) -> list:
     
     for task in tasks_list:
         try:
+            # Validate that task is a dictionary
+            if not isinstance(task, dict):
+                print(f"⚠️  Skipping invalid task format (expected dict, got {type(task).__name__}): {task}")
+                continue
+            
             # Extract and validate task data
             task_name = task.get('task_name', 'Unknown')
             task_complexity = task.get('task_complexity', 3)
             task_type = task.get('task_type', 'general')
             general_estimation_hours = task.get('general_estimation', 1)
             
-            # Convert hours to seconds for the model
-            expert_est_sec = general_estimation_hours * 3600
+            # Convert minutes to seconds for the model
+            expert_est_sec = general_estimation_hours * 60
             
             # Get duration estimate (complexity is numeric 1-5)
             duration_minutes = predict_duration_adhd(
@@ -179,9 +184,13 @@ def estimate_tasks_from_llm(tasks_list: list, buffer=1.2) -> list:
             enriched_tasks.append(enriched_task)
             
         except Exception as e:
-            print(f"Error estimating duration for '{task.get('task_name', 'Unknown')}': {e}")
-            task['estimated_duration_minutes'] = None
-            enriched_tasks.append(task)
+            # Safely extract task name
+            task_name = task.get('task_name', 'Unknown') if isinstance(task, dict) else str(task)
+            print(f"Error estimating duration for '{task_name}': {e}")
+            # Only append task if it's a valid dictionary
+            if isinstance(task, dict):
+                task['estimated_duration_minutes'] = None
+                enriched_tasks.append(task)
     
     return enriched_tasks
 

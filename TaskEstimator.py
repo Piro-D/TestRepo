@@ -37,6 +37,20 @@ def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
     response_time = decomposition_result.get("response_time_seconds", 0)
     print(f"Decomposition complete in {response_time}s. Found {len(tasks)} tasks.")
     
+    # Validate task format - ensure all tasks are dictionaries
+    valid_tasks = []
+    for task in tasks:
+        if isinstance(task, dict):
+            valid_tasks.append(task)
+        else:
+            print(f"⚠️  Warning: Skipping invalid task format (expected dict, got {type(task).__name__})")
+    
+    tasks = valid_tasks
+    if not tasks:
+        return {"status": "error", "message": "No valid tasks found after decomposition"}
+    
+    print(f"Valid tasks: {len(tasks)}")
+    
     # Step 4: Estimate duration for each task
     print(f"\nEstimating task durations...")
     estimated_tasks = estimate_tasks_from_llm(tasks, buffer=buffer)
@@ -58,10 +72,10 @@ def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
         
         print(f"\n{i}. {name}")
         print(f"   Type: {task_type} | Complexity: {complexity}/5")
-        print(f"   LLM Estimate: {llm_est}h | ⏱️ ADHD Duration: {duration} min")
+        print(f"   LLM Estimate: {llm_est} min | Estimated Actual Duration: {duration} min")
     
     print("\n" + "="*60)
-    print(f"📈 TOTAL PROJECT TIME (ADHD): {total_minutes:.0f} minutes ({total_minutes/60:.1f} hours)")
+    print(f"TOTAL PROJECT TIME (ADHD): {total_minutes:.0f} minutes ({total_minutes/60:.1f} hours)")
     print("="*60 + "\n")
     
     return {

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ADHD Task Scheduler</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        
+    </style>
+</head>
+
+<nav>
+        <div class="header">
+            <h1>🧠 ADHD Task Scheduler</h1>
+        </div>
+</nav>
+<body>
+
+    <div class="page">
+ 
+        {% if not logged_in %}
+        <!-- ── Logged Out State ── -->
+        <div class="card login-card">
+            <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
+            <p>Connect your Google Calendar to let the AI parse your assignments, estimate time, and push scheduled sessions automatically.</p>
+            <a href="/authorize" class="btn">Log in with Google</a>
+        </div>
+ 
+        {% else %}
+        <!-- ── Connection Status Row ── -->
+        <div class="connection-row">
+            <span>✅ Connected to Google Calendar</span>
+            <a href="/logout">Log Out</a>
+        </div>
+ 
+        <!-- ── Focus Settings Card ── -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-icon">⚙️</span>
+                <h3>Focus Settings</h3>
+            </div>
+ 
+            {% if has_saved_tasks %}
+            <div class="status-banner info">
+                📝 Active document in memory — saving will recalculate and update your Calendar instantly.
+            </div>
+            {% endif %}
+ 
+            <form action="/update_settings" method="POST">
+                <div class="form-grid">
+ 
+                    <!-- Session + Break -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Focus Duration</label>
+                            <input type="number" name="span" value="{{ current_span }}" min="5" max="120" required placeholder="mins">
+                        </div>
+                        <div class="form-group">
+                            <label>Break Between Sessions</label>
+                            <input type="number" name="break_duration" value="{{ break_duration }}" min="0" max="60" required placeholder="mins">
+                        </div>
+                    </div>
+ 
+                    <!-- Work Hours -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Work Start</label>
+                            <input type="time" name="work_start" value="{{ work_start }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Work End</label>
+                            <input type="time" name="work_end" value="{{ work_end }}" required>
+                        </div>
+                    </div>
+ 
+                    <!-- Working Days -->
+                    <div>
+                        <div class="days-label">Working Days</div>
+                        <div class="days-grid">
+                            {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                            {% for day in days %}
+                            <label class="day-pill">
+                                <input type="checkbox" name="working_days" value="{{ day }}"
+                                    {% if day in working_days %}checked{% endif %}>
+                                {{ day[:3] }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+ 
+                </div>
+ 
+                <div class="divider"></div>
+                <button type="submit" class="btn btn-sm">Save Settings & Apply</button>
+            </form>
+        </div>
+ 
+        <!-- ── Upload Card ── -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-icon">🎯</span>
+                <h3>Upload Assignment / Syllabus</h3>
+            </div>
+ 
+            <div class="status-banner warning" style="margin-bottom: 16px;">
+                Your document will be parsed, timed, and pushed to Google Calendar automatically.
+            </div>
+ 
+            <form action="/schedule_tasks" method="POST" enctype="multipart/form-data">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Select File</label>
+                    <input type="file" name="task_file" accept=".pdf,.doc,.docx" required>
+                    <p class="upload-hint">Accepted formats: .pdf, .doc, .docx</p>
+                </div>
+                <button type="submit" class="btn btn-green">Analyze &amp; Push to Calendar</button>
+            </form>
+        </div>
+ 
+        {% if message %}
+        <div class="message-bar">{{ message }}</div>
+        {% endif %}
+ 
+        {% endif %}
+    </div>
+</body>
+</html>
