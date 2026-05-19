@@ -41,13 +41,31 @@ def train_evaluate_and_save():
     # --- INITIAL CLEANING ---
     df = df[(df['expert_estimated_effort'] > 0) & (df['actual_effort'] > 0)].copy()
 
+
+    # noise removal based on ratio difference
+    df["effort_ratio"] = df["actual_effort"] / df["expert_estimated_effort"]
+
+    lower_ratio = 1 / 2
+    upper_ratio = 2
+
+    before_count = len(df)
+
+    df = df[
+        (df["effort_ratio"] >= lower_ratio) &
+        (df["effort_ratio"] <= upper_ratio)
+    ].copy()
+
+
+
     # ---  IQR OUTLIER REMOVAL ---
     Q1 = df['actual_effort'].quantile(0.25)
     Q3 = df['actual_effort'].quantile(0.75)
     IQR = Q3 - Q1
+
     
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
+    
     df_clean = df[(df['actual_effort'] >= lower_bound) & (df['actual_effort'] <= upper_bound)].copy()
     
     removed_count = len(df) - len(df_clean)
@@ -65,17 +83,21 @@ def train_evaluate_and_save():
     X = df_clean[['expert_estimated_effort', 'complexity_class', 'task_type_enc']]
     y = df_clean['actual_effort']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    df_clean.to_csv('cleaned_dataset.csv', index=False)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=26)
 
     # --- OPTIMIZED MODEL ---
     model = RandomForestRegressor(
-        n_estimators=300, 
-        max_depth=12, 
-        min_samples_leaf=4, 
-        random_state=42,
+        n_estimators=200, 
+        max_depth=8, 
+        min_samples_leaf=8, 
+        random_state=26,
         n_jobs=-1 
     )
     model.fit(X_train, y_train)
+
+    print(df_clean[['expert_estimated_effort', 'actual_effort']].corr())
 
     # ---EVALUATION ---
     preds = model.predict(X_test)
@@ -84,7 +106,7 @@ def train_evaluate_and_save():
     r2 = r2_score(y_test, preds)
     
     print("=" * 40)
-    print("📊 OPTIMIZED MODEL RESULTS")
+    print("OPTIMIZED MODEL RESULTS")
     print("=" * 40)
     print(f"MAE      : {mae:.2f} seconds")
     print(f"RMSE     : {rmse:.2f} seconds")
@@ -158,7 +180,7 @@ def estimate_tasks_from_llm(tasks_list: list, buffer=1.2) -> list:
         try:
             # Validate that task is a dictionary
             if not isinstance(task, dict):
-                print(f"⚠️  Skipping invalid task format (expected dict, got {type(task).__name__}): {task}")
+                print(f"⚠️ Skipping invalid task format (expected dict, got {type(task).__name__}): {task}")
                 continue
             
             # Extract and validate task data
