@@ -43,16 +43,28 @@ def train_evaluate_and_save():
 
 
     # noise removal based on ratio difference
+    
     df["effort_ratio"] = df["actual_effort"] / df["expert_estimated_effort"]
 
-    lower_ratio = 1 / 2
-    upper_ratio = 2
+    # Define allowed ratio per task type
+    ratio_limits = {
+        "coding": 4,
+        "problem solving": 3,
+        "research": 3,
+    }
+    default_ratio = 2
+
+    # Create task-specific upper and lower limits
+    df["allowed_ratio"] = df["task_type"].map(ratio_limits).fillna(default_ratio)
+
+    df["lower_ratio"] = 1 / df["allowed_ratio"]
+    df["upper_ratio"] = df["allowed_ratio"]
 
     before_count = len(df)
 
     df = df[
-        (df["effort_ratio"] >= lower_ratio) &
-        (df["effort_ratio"] <= upper_ratio)
+        (df["effort_ratio"] >= df["lower_ratio"]) &
+        (df["effort_ratio"] <= df["upper_ratio"])
     ].copy()
 
 
@@ -89,7 +101,7 @@ def train_evaluate_and_save():
 
     # --- OPTIMIZED MODEL ---
     model = RandomForestRegressor(
-        n_estimators=200, 
+        n_estimators=600, 
         max_depth=8, 
         min_samples_leaf=8, 
         random_state=26,
@@ -190,7 +202,7 @@ def estimate_tasks_from_llm(tasks_list: list, buffer=1.2) -> list:
             general_estimation_hours = task.get('general_estimation', 1)
             
             # Convert minutes to seconds for the model
-            expert_est_sec = general_estimation_hours * 60
+            expert_est_sec = general_estimation_hours * 3600
             
             # Get duration estimate (complexity is numeric 1-5)
             duration_minutes = predict_duration_adhd(
@@ -222,5 +234,5 @@ if __name__ == "__main__":
     
     # Test
     print("SAMPLE PREDICTION")
-    result = predict_duration_adhd(3600, 3, "coding")
+    result = predict_duration_adhd(7200, 5, "coding")
     print(f"Suggested Duration: {result} minutes")

@@ -13,9 +13,9 @@ from io import StringIO
 #Set up model directory for Ollama LLM model
 BASE_DIR = os.path.dirname(__file__)
 MODEL_DIR = os.path.join(BASE_DIR, "models")
-MAX_DOCUMENT_CHARS = 4000
-DEFAULT_MODEL = "qwen3:8B" 
-DEFAULT_NUM_PREDICT = 1500
+MAX_DOCUMENT_CHARS = 8000
+DEFAULT_MODEL = "qwen3:8B"  # Use a smaller, faster model for decomposition
+DEFAULT_NUM_PREDICT = 3000
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.environ["OLLAMA_MODELS"] = MODEL_DIR
@@ -123,14 +123,12 @@ def generate_tasks(document_text: str, model: str = DEFAULT_MODEL) -> tuple:
         "1. 'task_name' : A descriptive name for the task\n "
         "2. 'task_complexity' : A scale from 1 - 5 related to the difficulty of the task\n "
         "3. 'task_type' : A category of the task, where the category must be one of these (coding, writing, reading, problem solving, review, research, general)\n "
-        "4. 'general_estimation' : An estimation of how long the task will take in minutes for an undergraduate computer sceince student.\n"
+        "4. 'general_estimation' : An estimation of how long the task will take in minutes for an undergraduate college student in computer science.\n"
 
-
+        "Complex tasks that  have higher general estimation times, and simpler tasks should have lower general estimation times."
         "Submition is not to be included as tasks"
         "Do not add any other attributes besides the mentioned attributes, and ensure that attributes are named correctly and consistently"
         "The output must be a valid JSON list of tasks, and nothing else. Do not include any explanations or text outside the JSON. Do not hallucinate any information"
-        "Focus only on tasks that are necessary for the completion of the project."
-        
     )
 
     if len(document_text) > MAX_DOCUMENT_CHARS:

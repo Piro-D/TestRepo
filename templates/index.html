@@ -5,122 +5,303 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
+        .weekly-config-box { background: #fafafa; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 10px; }
+        .day-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #edf2f7; }
+        .day-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .day-label { display: flex; align-items: center; gap: 10px; font-weight: 500; color: #2d3748; width: 130px; cursor: pointer; }
+        .day-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #4285f4; }
+        .time-inputs { display: flex; gap: 12px; align-items: center; }
+        .time-inputs input[type="time"] { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 14px; color: #475569; background: #fff; }
         
+        /* Sub-Menu Tabs CSS */
+        .tab-nav { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .tab-btn { background: none; border: none; font-size: 15px; color: #64748b; cursor: pointer; padding: 8px 16px; border-radius: 6px; font-weight: 600; transition: all 0.2s; }
+        .tab-btn:hover { background: #f1f5f9; color: #334155; }
+        .tab-btn.active { color: #2563eb; background: #eff6ff; box-shadow: inset 0 0 0 1px #bfdbfe; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .result-box { background: #1e293b; color: #f8fafc; font-family: 'DM Mono', monospace; padding: 15px; border-radius: 8px; font-size: 13px; overflow-x: auto; margin-top: 15px; }
+
+        /* Dynamic Manual Scheduler CSS */
+        .manual-task-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; animation: fadeIn 0.2s; }
+        .manual-task-row input[type="text"] { flex: 2; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'DM Sans', sans-serif;}
+        .manual-task-row input[type="number"] { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'DM Sans', sans-serif;}
+        .btn-remove { background: #fee2e2; color: #ef4444; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .btn-remove:hover { background: #fecaca; }
+        .btn-add { background: #f8fafc; color: #475569; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: 600; transition: 0.2s; margin-bottom: 10px;}
+        .btn-add:hover { background: #f1f5f9; border-color: #94a3b8; }
     </style>
 </head>
 
-<nav>
+<body>
+    <nav>
         <div class="header">
             <h1>🧠 ADHD Task Scheduler</h1>
         </div>
-</nav>
-<body>
+    </nav>
 
     <div class="page">
- 
         {% if not logged_in %}
-        <!-- ── Logged Out State ── -->
         <div class="card login-card">
             <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
             <p>Connect your Google Calendar to let the AI parse your assignments, estimate time, and push scheduled sessions automatically.</p>
             <a href="/authorize" class="btn">Log in with Google</a>
         </div>
- 
         {% else %}
-        <!-- ── Connection Status Row ── -->
-        <div class="connection-row">
+        
+        <div class="connection-row" style="margin-bottom: 20px;">
             <span>✅ Connected to Google Calendar</span>
             <a href="/logout">Log Out</a>
         </div>
- 
-        <!-- ── Focus Settings Card ── -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-icon">⚙️</span>
-                <h3>Focus Settings</h3>
+
+        <div class="tab-nav">
+            <button class="tab-btn {% if active_tab == 'pipeline' %}active{% endif %}" onclick="openTab('pipeline')">🔗 Full Pipeline</button>
+            <button class="tab-btn {% if active_tab == 'decompose' %}active{% endif %}" onclick="openTab('decompose')">📝 Decompose Only</button>
+            <button class="tab-btn {% if active_tab == 'estimate' %}active{% endif %}" onclick="openTab('estimate')">⏱️ Estimate Only</button>
+            <button class="tab-btn {% if active_tab == 'schedule' %}active{% endif %}" onclick="openTab('schedule')">📅 Schedule Only</button>
+        </div>
+
+        {% if message %}
+        <div class="message-bar" style="margin-bottom: 20px;">{{ message }}</div>
+        {% endif %}
+
+        <div id="tab-pipeline" class="tab-content {% if active_tab == 'pipeline' %}active{% endif %}">
+            
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <h3>Focus Settings</h3>
+                </div>
+                <form action="/update_settings" method="POST">
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Focus Duration</label>
+                                <input type="number" name="span" value="{{ current_span }}" min="5" max="120" required placeholder="mins">
+                            </div>
+                            <div class="form-group">
+                                <label>Break Between Sessions</label>
+                                <input type="number" name="break_duration" value="{{ break_duration }}" min="0" max="60" required placeholder="mins">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label>Weekly Schedule Configuration</label>
+                            <div class="weekly-config-box">
+                                {% set days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] %}
+                                {% for day in days_of_week %}
+                                <div class="day-row">
+                                    <label class="day-label">
+                                        <input type="checkbox" name="working_days" value="{{ day }}" {% if day in working_hours_config %}checked{% endif %}>
+                                        {{ day }}
+                                    </label>
+                                    <div class="time-inputs">
+                                        <input type="time" name="{{ day }}_start" value="{{ working_hours_config[day][0]['start'] if day in working_hours_config else '08:00' }}">
+                                        <span class="time-divider">TO</span>
+                                        <input type="time" name="{{ day }}_end" value="{{ working_hours_config[day][0]['end'] if day in working_hours_config else '20:00' }}">
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <button type="submit" class="btn btn-sm">Save Settings & Apply</button>
+                </form>
             </div>
- 
+
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-header">
+                    <span class="card-icon">🎯</span>
+                    <h3>Upload Assignment / Syllabus</h3>
+                </div>
+                <div class="status-banner warning" style="margin-bottom: 16px;">Documents will be parsed and <strong>appended</strong> to your backlog.</div>
+                <form action="/schedule_tasks" method="POST" enctype="multipart/form-data">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <input type="file" name="task_file" accept=".pdf,.doc,.docx" required style="padding: 10px; width: 100%; border: 1px dashed #ccc;">
+                    </div>
+                    <button type="submit" class="btn btn-green">Analyze &amp; Append to Schedule</button>
+                </form>
+            </div>
+
             {% if has_saved_tasks %}
-            <div class="status-banner info">
-                📝 Active document in memory — saving will recalculate and update your Calendar instantly.
+            <div class="card" style="margin-top: 20px; border: 2px solid #4285f4;">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center;">
+                        <span class="card-icon">📋</span>
+                        <h3 style="margin: 0;">Active Task Backlog</h3>
+                    </div>
+                    <form action="/clear_backlog" method="POST" onsubmit="return confirm('Are you sure you want to clear all tasks and calendar blocks?');" style="margin:0;">
+                        <button type="submit" class="btn-remove" style="padding: 6px 12px; font-size: 12px;">Clear All</button>
+                    </form>
+                </div>
+                
+                <p style="font-size: 13px; color: #64748b; margin-top: 10px; margin-bottom: 15px;">
+                    Update remaining time for partially finished tasks, or check them off. Saving will instantly rebuild your Google Calendar blocks.
+                </p>
+
+                <form action="/update_backlog" method="POST">
+                    <div style="background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 15px; max-height: 400px; overflow-y: auto;">
+                        {% for task in saved_tasks %}
+                        <div class="day-row" style="padding: 10px 0; gap: 10px; border-bottom: 1px solid #edf2f7; align-items: center;">
+                            <input type="hidden" name="task_ids" value="{{ task.id }}">
+                            
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #16a34a; font-weight: bold; width: 80px; font-size: 14px;">
+                                <input type="checkbox" name="complete_{{ task.id }}" value="1" style="width:18px; height:18px; accent-color: #16a34a;">
+                                Done
+                            </label>
+
+                            <input type="text" name="name_{{ task.id }}" value="{{ task.name }}" required 
+                                   style="flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'DM Sans', sans-serif;">
+                            
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <input type="number" name="duration_{{ task.id }}" value="{{ task.duration_minutes }}" min="1" required 
+                                       style="width: 70px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'DM Mono', monospace;">
+                                <span style="color: #64748b; font-size: 12px;">mins</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="submit" class="btn" style="background: #0F9D58; margin-top: 15px; width: 100%;">Update & Resync Calendar</button>
+                </form>
             </div>
             {% endif %}
- 
-            <form action="/update_settings" method="POST">
-                <div class="form-grid">
- 
-                    <!-- Session + Break -->
+        </div>
+
+        <div id="tab-decompose" class="tab-content {% if active_tab == 'decompose' %}active{% endif %}">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📝</span>
+                    <h3>LLM Decomposer</h3>
+                </div>
+                <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">Upload a document to see the raw task breakdown generated by the AI model. No tasks will be scheduled.</p>
+                <form action="/tool_decompose" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <input type="file" name="doc_file" accept=".pdf,.doc,.docx" required style="padding: 10px; width: 100%; border: 1px dashed #ccc; margin-bottom: 15px;">
+                    </div>
+                    <button type="submit" class="btn" style="background: #334155;">Extract Tasks</button>
+                </form>
+                
+                {% if decompose_result %}
+                <div class="result-box">
+                    <pre style="margin: 0;">{{ decompose_result | tojson(indent=2) }}</pre>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="tab-estimate" class="tab-content {% if active_tab == 'estimate' %}active{% endif %}">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">⏱️</span>
+                    <h3>Machine Learning Duration Predictor</h3>
+                </div>
+                <form action="/tool_estimate" method="POST">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Focus Duration</label>
-                            <input type="number" name="span" value="{{ current_span }}" min="5" max="120" required placeholder="mins">
+                            <label>Neurotypical Est. (Hours)</label>
+                            <input type="number" step="0.1" name="hours" required placeholder="e.g. 2.5">
                         </div>
                         <div class="form-group">
-                            <label>Break Between Sessions</label>
-                            <input type="number" name="break_duration" value="{{ break_duration }}" min="0" max="60" required placeholder="mins">
-                        </div>
-                    </div>
- 
-                    <!-- Work Hours -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Work Start</label>
-                            <input type="time" name="work_start" value="{{ work_start }}" required>
+                            <label>Complexity (1-5)</label>
+                            <input type="number" min="1" max="5" name="complexity" required placeholder="3">
                         </div>
                         <div class="form-group">
-                            <label>Work End</label>
-                            <input type="time" name="work_end" value="{{ work_end }}" required>
+                            <label>Task Type</label>
+                            <select name="task_type" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                                <option value="coding">Coding</option>
+                                <option value="writing">Writing</option>
+                                <option value="reading">Reading</option>
+                                <option value="problem solving">Problem Solving</option>
+                                <option value="research">Research</option>
+                                <option value="general">General</option>
+                            </select>
                         </div>
                     </div>
- 
-                    <!-- Working Days -->
-                    <div>
-                        <div class="days-label">Working Days</div>
-                        <div class="days-grid">
-                            {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-                            {% for day in days %}
-                            <label class="day-pill">
-                                <input type="checkbox" name="working_days" value="{{ day }}"
-                                    {% if day in working_days %}checked{% endif %}>
-                                {{ day[:3] }}
-                            </label>
-                            {% endfor %}
-                        </div>
-                    </div>
- 
+                    <button type="submit" class="btn" style="background: #334155; margin-top: 15px;">Predict ADHD Duration</button>
+                </form>
+
+                {% if estimate_result %}
+                <div class="status-banner info" style="margin-top: 20px; font-size: 16px; border-left-color: #8b5cf6; background: #ede9fe; color: #4c1d95;">
+                    <strong>Prediction Result:</strong><br>
+                    A {{ estimate_result.hours }}h {{ estimate_result.type }} task (Level {{ estimate_result.complexity }}) will likely take an ADHD student 
+                    <span style="font-size: 20px; font-weight: bold; color: #7c3aed;">{{ estimate_result.adhd_minutes }} minutes</span>.
                 </div>
- 
-                <div class="divider"></div>
-                <button type="submit" class="btn btn-sm">Save Settings & Apply</button>
-            </form>
+                {% endif %}
+            </div>
         </div>
- 
-        <!-- ── Upload Card ── -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-icon">🎯</span>
-                <h3>Upload Assignment / Syllabus</h3>
-            </div>
- 
-            <div class="status-banner warning" style="margin-bottom: 16px;">
-                Your document will be parsed, timed, and pushed to Google Calendar automatically.
-            </div>
- 
-            <form action="/schedule_tasks" method="POST" enctype="multipart/form-data">
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label>Select File</label>
-                    <input type="file" name="task_file" accept=".pdf,.doc,.docx" required>
-                    <p class="upload-hint">Accepted formats: .pdf, .doc, .docx</p>
+
+        <div id="tab-schedule" class="tab-content {% if active_tab == 'schedule' %}active{% endif %}">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">📅</span>
+                    <h3>Manual Task Scheduler</h3>
                 </div>
-                <button type="submit" class="btn btn-green">Analyze &amp; Push to Calendar</button>
-            </form>
+                <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">Add tasks manually to have them automatically chunked and <strong>appended</strong> to your active backlog.</p>
+                
+                <form action="/tool_schedule" method="POST" id="manual-schedule-form">
+                    <div id="task-list">
+                        <div class="manual-task-row">
+                            <input type="text" class="m-task-name" placeholder="Task Name (e.g. Read Chapter 1)" required>
+                            <input type="number" class="m-task-duration" placeholder="Minutes" min="1" required>
+                            <button type="button" class="btn-remove" onclick="this.parentElement.remove()" title="Remove Task">✕</button>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-add" onclick="addManualTask()">+ Add Another Task</button>
+                    <input type="hidden" name="json_tasks" id="hidden_json_tasks">
+                    <button type="submit" class="btn btn-green" style="margin-top: 5px;">Append to Backlog & Schedule</button>
+                </form>
+            </div>
         </div>
- 
-        {% if message %}
-        <div class="message-bar">{{ message }}</div>
-        {% endif %}
- 
+
         {% endif %}
     </div>
+
+    <script>
+        function openTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`button[onclick="openTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            window.history.replaceState({}, document.title, "/");
+        }
+
+        function addManualTask() {
+            const container = document.getElementById('task-list');
+            const row = document.createElement('div');
+            row.className = 'manual-task-row';
+            row.innerHTML = `
+                <input type="text" class="m-task-name" placeholder="Task Name" required>
+                <input type="number" class="m-task-duration" placeholder="Minutes" min="1" required>
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()" title="Remove Task">✕</button>
+            `;
+            container.appendChild(row);
+        }
+
+        document.getElementById('manual-schedule-form').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            const rows = document.querySelectorAll('.manual-task-row');
+            const tasks = [];
+            
+            rows.forEach(row => {
+                const name = row.querySelector('.m-task-name').value;
+                const duration = row.querySelector('.m-task-duration').value;
+                if (name && duration) {
+                    tasks.push({
+                        "name": name,
+                        "duration_minutes": parseInt(duration)
+                    });
+                }
+            });
+            
+            document.getElementById('hidden_json_tasks').value = JSON.stringify(tasks);
+            this.submit();
+        });
+    </script>
 </body>
 </html>

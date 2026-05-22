@@ -63,7 +63,7 @@ def get_busy_intervals(service, time_min, time_max):
 
 def is_within_working_hours(target_start, target_end, working_hours_config):
     """
-    Check if a time slot falls within working hours.
+    Check if a time slot falls within working hours based on the per-day dictionary.
     
     Args:
         target_start: Start datetime
@@ -102,7 +102,7 @@ def find_next_free_slot(duration_mins, current_search_time, working_hours, busy_
     Args:
         duration_mins: Required duration in minutes
         current_search_time: Starting search datetime
-        working_hours: Working hours configuration
+        working_hours: Working hours configuration (per-day dictionary)
         busy_intervals: List of busy time periods
         
     Returns:
@@ -208,15 +208,9 @@ def push_to_calendar(ml_tasks, session_data):
     search_horizon = now + datetime.timedelta(days=config.SCHEDULING_HORIZON_DAYS)
     busy_intervals = get_busy_intervals(service, now, search_horizon)
     
-    start_time = session_data.get('work_start', config.DEFAULT_WORK_START)
-    end_time = session_data.get('work_end', config.DEFAULT_WORK_END)
-    working_days = session_data.get('working_days', config.DEFAULT_WORKING_DAYS)
-    
-    # Only create working hours config for selected days
-    working_hours_config = {
-        day: [{"start": start_time, "end": end_time}]
-        for day in working_days
-    }
+    # Load the pre-built, per-day dictionary directly from the session state
+    default_config = {day: [{"start": "08:00", "end": "20:00"}] for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]}
+    working_hours_config = session_data.get('working_hours_config', default_config)
     
     current_search_time = now
     generated_ids = []
