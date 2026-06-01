@@ -2,7 +2,7 @@ body {
     font-family: 'DM Sans', sans-serif;
     background-color: #f0f2f8;
     min-height: 100vh;
-    padding: 40px 20px 0px 40 px;
+    padding: 40px 20px 0 40px;
     margin: 0;
     color: #1a1a2e;
 }
@@ -284,4 +284,229 @@ nav {
 .connection-row a:hover {
     background: #EA4335;
     color: white;
+}
+
+.weekly-config-box {
+    background: #fafafa;
+    padding: 15px 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-top: 10px;
+}
+
+.day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.day-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.day-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: #2d3748;
+    width: 130px;
+    cursor: pointer;
+}
+
+.day-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #4285f4;
+}
+
+.time-inputs {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.time-inputs input[type="time"] {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: #475569;
+    background: #fff;
+}
+
+.tab-nav {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    font-size: 15px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.tab-btn.active {
+    color: #2563eb;
+    background: #eff6ff;
+    box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-box {
+    background: #1e293b;
+    color: #f8fafc;
+    font-family: 'DM Mono', monospace;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 13px;
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+.manual-task-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+    animation: fadeIn 0.2s;
+}
+
+.manual-task-row input[type="text"] {
+    flex: 2;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.manual-task-row input[type="number"] {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.btn-remove {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.btn-remove:hover {
+    background: #fecaca;
+}
+
+.btn-add {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px dashed #cbd5e1;
+    padding: 10px;
+    border-radius: 6px;
+    width: 100%;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+    margin-bottom: 10px;
+}
+
+.btn-add:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.48);
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loading-dialog {
+    width: min(420px, 100%);
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 28px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.24);
+}
+
+.loading-dialog h2 {
+    margin: 16px 0 8px;
+    font-size: 20px;
+    color: #1a1a2e;
+}
+
+.loading-dialog p {
+    margin: 0;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.loading-spinner {
+    width: 42px;
+    height: 42px;
+    margin: 0 auto;
+    border: 4px solid #dbeafe;
+    border-top-color: #4285F4;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

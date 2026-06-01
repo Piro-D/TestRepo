@@ -1,83 +1,85 @@
-import json
-from LLM_Decomposition import process_document, ensure_model, DEFAULT_MODEL
-from DurationEstimator import estimate_tasks_from_llm, train_evaluate_and_save, load_model_objects
+import sys
+from pathlib import Path
 
-# Function to test integration of LLM decomposition and duration estimation
+if __package__ is None or __package__ == "":
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+import config
+from ml.duration_estimator import estimate_tasks_from_llm, load_model_objects, train_evaluate_and_save
+from ml.llm_decomposition import DEFAULT_MODEL, ensure_model, process_document
+
+
+
+
 def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
-    
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TASK ESTIMATOR - PROJECT DECOMPOSITION & DURATION ESTIMATION")
-    print("="*60 + "\n")
-    
-    # Step 1: Ensure LLM model is available
+    print("=" * 60 + "\n")
+
     print(f"Loading LLM model: {DEFAULT_MODEL}...")
     try:
         ensure_model(DEFAULT_MODEL)
     except Exception as e:
         return {"status": "error", "message": f"Failed to load LLM model: {e}"}
-    
-    # Step 2: Check if duration estimator models exist
-    print("🔍 Checking duration estimator models...")
+
+    print("Checking duration estimator models...")
     model, le_task = load_model_objects()
     if model is None:
-        print("⚠️  Duration estimator models not found. Training new model...")
+        print("Duration estimator models not found. Training new model...")
         train_evaluate_and_save()
         model, le_task = load_model_objects()
         if model is None:
             return {"status": "error", "message": "Failed to train duration estimator model"}
-    
-    # Step 3: Decompose document
+
     print(f"\nProcessing document: {document_path}")
     decomposition_result = process_document(document_path)
-    
+
     if decomposition_result.get("status") != "success":
         return decomposition_result
-    
+
     tasks = decomposition_result.get("tasks", [])
     response_time = decomposition_result.get("response_time_seconds", 0)
     print(f"Decomposition complete in {response_time}s. Found {len(tasks)} tasks.")
-    
-    # Validate task format - ensure all tasks are dictionaries
+
     valid_tasks = []
     for task in tasks:
         if isinstance(task, dict):
             valid_tasks.append(task)
         else:
-            print(f"⚠️  Warning: Skipping invalid task format (expected dict, got {type(task).__name__})")
-    
+            print(f"Warning: Skipping invalid task format (expected dict, got {type(task).__name__})")
+
     tasks = valid_tasks
     if not tasks:
         return {"status": "error", "message": "No valid tasks found after decomposition"}
-    
+
     print(f"Valid tasks: {len(tasks)}")
-    
-    # Step 4: Estimate duration for each task
-    print(f"\nEstimating task durations...")
+    print("\nEstimating task durations...")
     estimated_tasks = estimate_tasks_from_llm(tasks, buffer=buffer)
-    
-    # Step 5: Compile results
-    total_minutes = sum(t.get('estimated_duration_minutes', 0) for t in estimated_tasks if t.get('estimated_duration_minutes'))
-    
-    print("\n" + "="*60)
+
+    total_minutes = sum(
+        task.get('estimated_duration_minutes', 0)
+        for task in estimated_tasks
+        if task.get('estimated_duration_minutes')
+    )
+
+    print("\n" + "=" * 60)
     print("RESULTS")
-    print("="*60)
+    print("=" * 60)
     for i, task in enumerate(estimated_tasks, 1):
-        # 🛡️ DEFENSIVE GETTERS: This prevents the app from crashing if the LLM makes a typo!
-        # I even added a fallback just in case it explicitly types 'task_nameiname' again.
         name = task.get('task_name', task.get('task_nameiname', 'Unnamed Task'))
         complexity = task.get('task_complexity', '?')
         task_type = task.get('task_type', 'general')
         llm_est = task.get('general_estimation', '?')
         duration = task.get('estimated_duration_minutes', 'N/A')
-        
+
         print(f"\n{i}. {name}")
         print(f"   Type: {task_type} | Complexity: {complexity}/5")
         print(f"   LLM Estimate: {llm_est} min | Estimated Actual Duration: {duration} min")
-    
-    print("\n" + "="*60)
-    print(f"TOTAL PROJECT TIME (ADHD): {total_minutes:.0f} minutes ({total_minutes/60:.1f} hours)")
-    print("="*60 + "\n")
-    
+
+    print("\n" + "=" * 60)
+    print(f"TOTAL PROJECT TIME (ADHD): {total_minutes:.0f} minutes ({total_minutes / 60:.1f} hours)")
+    print("=" * 60 + "\n")
+
     return {
         "status": "success",
         "document": document_path,
@@ -89,13 +91,12 @@ def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
 
 
 if __name__ == "__main__":
-    # Example usage
-    document_file = r".\TestDocuments\document3.docx"
-    
-    result = estimate_project_tasks(document_file, buffer=1.2)
-    
-    # Save results to file
-    with open("task_estimates.json", "w") as f:
+    import json
+
+    document_file = config.BASE_DIR / "TestDocuments" / "document3.docx"
+    result = estimate_project_tasks(str(document_file), buffer=1.2)
+
+    with config.TASK_ESTIMATES_FILE.open("w", encoding="utf-8") as f:
         json.dump(result, f, indent=4)
-    
-    print("\n Results saved to task_estimates.json")
+
+    print(f"\nResults saved to {config.TASK_ESTIMATES_FILE}")

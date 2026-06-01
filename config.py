@@ -1,8 +1,14 @@
-"""
-Configuration settings for the ADHD Task Scheduler application.
-"""
-
 import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
+RUNTIME_DIR = BASE_DIR / "instance"
+ARTIFACTS_DIR = BASE_DIR / "artifacts"
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+
+for directory in (RUNTIME_DIR, ARTIFACTS_DIR, UPLOAD_FOLDER):
+    directory.mkdir(exist_ok=True)
 
 # Flask Configuration
 SECRET_KEY = "super_secret_adhd_scheduler_key"
@@ -15,11 +21,10 @@ SCOPES = [
 CLIENT_SECRETS_FILE = "credentials.json"
 
 # File Upload Configuration
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx'}
-
-# Create upload folder if it doesn't exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ACTIVE_SCHEDULE_FILE = RUNTIME_DIR / "active_schedule.json"
+CLEANED_DATASET_FILE = ARTIFACTS_DIR / "cleaned_dataset.csv"
+TASK_ESTIMATES_FILE = ARTIFACTS_DIR / "task_estimates.json"
 
 # Default Settings
 DEFAULT_ATTENTION_SPAN = 20  # minutes

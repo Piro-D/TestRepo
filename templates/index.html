@@ -4,63 +4,34 @@
     <title>ADHD Task Scheduler</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .weekly-config-box { background: #fafafa; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 10px; }
-        .day-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #edf2f7; }
-        .day-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .day-label { display: flex; align-items: center; gap: 10px; font-weight: 500; color: #2d3748; width: 130px; cursor: pointer; }
-        .day-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #4285f4; }
-        .time-inputs { display: flex; gap: 12px; align-items: center; }
-        .time-inputs input[type="time"] { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 14px; color: #475569; background: #fff; }
-        
-        /* Sub-Menu Tabs CSS */
-        .tab-nav { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-        .tab-btn { background: none; border: none; font-size: 15px; color: #64748b; cursor: pointer; padding: 8px 16px; border-radius: 6px; font-weight: 600; transition: all 0.2s; }
-        .tab-btn:hover { background: #f1f5f9; color: #334155; }
-        .tab-btn.active { color: #2563eb; background: #eff6ff; box-shadow: inset 0 0 0 1px #bfdbfe; }
-        .tab-content { display: none; animation: fadeIn 0.3s; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .result-box { background: #1e293b; color: #f8fafc; font-family: 'DM Mono', monospace; padding: 15px; border-radius: 8px; font-size: 13px; overflow-x: auto; margin-top: 15px; }
-
-        /* Dynamic Manual Scheduler CSS */
-        .manual-task-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; animation: fadeIn 0.2s; }
-        .manual-task-row input[type="text"] { flex: 2; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'DM Sans', sans-serif;}
-        .manual-task-row input[type="number"] { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'DM Sans', sans-serif;}
-        .btn-remove { background: #fee2e2; color: #ef4444; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;}
-        .btn-remove:hover { background: #fecaca; }
-        .btn-add { background: #f8fafc; color: #475569; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: 600; transition: 0.2s; margin-bottom: 10px;}
-        .btn-add:hover { background: #f1f5f9; border-color: #94a3b8; }
-    </style>
 </head>
 
 <body>
     <nav>
         <div class="header">
-            <h1>🧠 ADHD Task Scheduler</h1>
+            <h1>ADHD Task Scheduler</h1>
         </div>
     </nav>
 
     <div class="page">
         {% if not logged_in %}
         <div class="card login-card">
-            <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
+            <div style="font-size: 48px; margin-bottom: 16px;">Calendar</div>
             <p>Connect your Google Calendar to let the AI parse your assignments, estimate time, and push scheduled sessions automatically.</p>
             <a href="/authorize" class="btn">Log in with Google</a>
         </div>
         {% else %}
         
         <div class="connection-row" style="margin-bottom: 20px;">
-            <span>✅ Connected to Google Calendar</span>
+            <span>Connected to Google Calendar</span>
             <a href="/logout">Log Out</a>
         </div>
 
         <div class="tab-nav">
-            <button class="tab-btn {% if active_tab == 'pipeline' %}active{% endif %}" onclick="openTab('pipeline')">🔗 Full Pipeline</button>
-            <button class="tab-btn {% if active_tab == 'decompose' %}active{% endif %}" onclick="openTab('decompose')">📝 Decompose Only</button>
-            <button class="tab-btn {% if active_tab == 'estimate' %}active{% endif %}" onclick="openTab('estimate')">⏱️ Estimate Only</button>
-            <button class="tab-btn {% if active_tab == 'schedule' %}active{% endif %}" onclick="openTab('schedule')">📅 Schedule Only</button>
+            <button class="tab-btn {% if active_tab == 'pipeline' %}active{% endif %}" onclick="openTab('pipeline')">Full Pipeline</button>
+            <button class="tab-btn {% if active_tab == 'decompose' %}active{% endif %}" onclick="openTab('decompose')">Decompose Only</button>
+            <button class="tab-btn {% if active_tab == 'estimate' %}active{% endif %}" onclick="openTab('estimate')">Estimate Only</button>
+            <button class="tab-btn {% if active_tab == 'schedule' %}active{% endif %}" onclick="openTab('schedule')">Schedule Only</button>
         </div>
 
         {% if message %}
@@ -71,10 +42,10 @@
             
             <div class="card">
                 <div class="card-header">
-                    <span class="card-icon">⚙️</span>
+                    <span class="card-icon">Settings</span>
                     <h3>Focus Settings</h3>
                 </div>
-                <form action="/update_settings" method="POST">
+                <form action="/update_settings" method="POST" data-loading-message="Saving settings and updating your schedule...">
                     <div class="form-grid">
                         <div class="form-row">
                             <div class="form-group">
@@ -113,11 +84,11 @@
 
             <div class="card" style="margin-top: 20px;">
                 <div class="card-header">
-                    <span class="card-icon">🎯</span>
+                    <span class="card-icon">Upload</span>
                     <h3>Upload Assignment / Syllabus</h3>
                 </div>
                 <div class="status-banner warning" style="margin-bottom: 16px;">Documents will be parsed and <strong>appended</strong> to your backlog.</div>
-                <form action="/schedule_tasks" method="POST" enctype="multipart/form-data">
+                <form action="/schedule_tasks" method="POST" enctype="multipart/form-data" data-loading-message="Analyzing your document and appending tasks to your schedule...">
                     <div class="form-group" style="margin-bottom: 16px;">
                         <input type="file" name="task_file" accept=".pdf,.doc,.docx" required style="padding: 10px; width: 100%; border: 1px dashed #ccc;">
                     </div>
@@ -129,10 +100,10 @@
             <div class="card" style="margin-top: 20px; border: 2px solid #4285f4;">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center;">
-                        <span class="card-icon">📋</span>
+                        <span class="card-icon">Tasks</span>
                         <h3 style="margin: 0;">Active Task Backlog</h3>
                     </div>
-                    <form action="/clear_backlog" method="POST" onsubmit="return confirm('Are you sure you want to clear all tasks and calendar blocks?');" style="margin:0;">
+                    <form action="/clear_backlog" method="POST" data-loading-message="Clearing your backlog and removing scheduled calendar blocks..." data-confirm-message="Are you sure you want to clear all tasks and calendar blocks?" style="margin:0;">
                         <button type="submit" class="btn-remove" style="padding: 6px 12px; font-size: 12px;">Clear All</button>
                     </form>
                 </div>
@@ -173,11 +144,11 @@
         <div id="tab-decompose" class="tab-content {% if active_tab == 'decompose' %}active{% endif %}">
             <div class="card">
                 <div class="card-header">
-                    <span class="card-icon">📝</span>
+                    <span class="card-icon">LLM</span>
                     <h3>LLM Decomposer</h3>
                 </div>
                 <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">Upload a document to see the raw task breakdown generated by the AI model. No tasks will be scheduled.</p>
-                <form action="/tool_decompose" method="POST" enctype="multipart/form-data">
+                <form action="/tool_decompose" method="POST" enctype="multipart/form-data" data-loading-message="Decomposing your document into tasks...">
                     <div class="form-group">
                         <input type="file" name="doc_file" accept=".pdf,.doc,.docx" required style="padding: 10px; width: 100%; border: 1px dashed #ccc; margin-bottom: 15px;">
                     </div>
@@ -195,10 +166,10 @@
         <div id="tab-estimate" class="tab-content {% if active_tab == 'estimate' %}active{% endif %}">
             <div class="card">
                 <div class="card-header">
-                    <span class="card-icon">⏱️</span>
+                    <span class="card-icon">ML</span>
                     <h3>Machine Learning Duration Predictor</h3>
                 </div>
-                <form action="/tool_estimate" method="POST">
+                <form action="/tool_estimate" method="POST" data-loading-message="Estimating the ADHD-adjusted task duration...">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Neurotypical Est. (Hours)</label>
@@ -236,17 +207,17 @@
         <div id="tab-schedule" class="tab-content {% if active_tab == 'schedule' %}active{% endif %}">
             <div class="card">
                 <div class="card-header">
-                    <span class="card-icon">📅</span>
+                    <span class="card-icon">Manual</span>
                     <h3>Manual Task Scheduler</h3>
                 </div>
                 <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">Add tasks manually to have them automatically chunked and <strong>appended</strong> to your active backlog.</p>
                 
-                <form action="/tool_schedule" method="POST" id="manual-schedule-form">
+                <form action="/tool_schedule" method="POST" id="manual-schedule-form" data-loading-message="Scheduling your manual tasks...">
                     <div id="task-list">
                         <div class="manual-task-row">
                             <input type="text" class="m-task-name" placeholder="Task Name (e.g. Read Chapter 1)" required>
                             <input type="number" class="m-task-duration" placeholder="Minutes" min="1" required>
-                            <button type="button" class="btn-remove" onclick="this.parentElement.remove()" title="Remove Task">✕</button>
+                            <button type="button" class="btn-remove" onclick="this.parentElement.remove()" title="Remove Task">Remove</button>
                         </div>
                     </div>
 
@@ -260,7 +231,60 @@
         {% endif %}
     </div>
 
+    <div id="loading-overlay" class="loading-overlay" aria-hidden="true">
+        <div class="loading-dialog" role="status" aria-live="polite">
+            <div class="loading-spinner"></div>
+            <h2 id="loading-title">Working on it...</h2>
+            <p id="loading-message">Please keep this page open.</p>
+        </div>
+    </div>
+
     <script>
+        function showLoading(message) {
+            const overlay = document.getElementById('loading-overlay');
+            const messageEl = document.getElementById('loading-message');
+
+            messageEl.textContent = message || 'Please keep this page open.';
+            overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
+        }
+
+        function submitAfterLoading(form) {
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.dataset.originalText = submitButton.textContent;
+                submitButton.textContent = 'Working...';
+            }
+
+            showLoading(form.dataset.loadingMessage);
+
+            window.setTimeout(() => {
+                form.submit();
+            }, 80);
+        }
+
+        document.querySelectorAll('form[data-loading-message]').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
+                }
+
+                if (form.dataset.confirmMessage && !window.confirm(form.dataset.confirmMessage)) {
+                    return;
+                }
+
+                if (form.id === 'manual-schedule-form') {
+                    prepareManualTasks();
+                }
+
+                submitAfterLoading(form);
+            });
+        });
+
         function openTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -278,13 +302,12 @@
             row.innerHTML = `
                 <input type="text" class="m-task-name" placeholder="Task Name" required>
                 <input type="number" class="m-task-duration" placeholder="Minutes" min="1" required>
-                <button type="button" class="btn-remove" onclick="this.parentElement.remove()" title="Remove Task">✕</button>
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()" title="Remove Task">Remove</button>
             `;
             container.appendChild(row);
         }
 
-        document.getElementById('manual-schedule-form').addEventListener('submit', function(e) {
-            e.preventDefault(); 
+        function prepareManualTasks() {
             const rows = document.querySelectorAll('.manual-task-row');
             const tasks = [];
             
@@ -300,8 +323,7 @@
             });
             
             document.getElementById('hidden_json_tasks').value = JSON.stringify(tasks);
-            this.submit();
-        });
+        }
     </script>
 </body>
 </html>

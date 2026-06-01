@@ -4,3 +4,9 @@ models/
 .venv
 *.log
 credentials.json
+uploads/
+instance/
+artifacts/
+active_schedule.json
+cleaned_dataset.csv
+task_estimates.json

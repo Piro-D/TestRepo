@@ -2,16 +2,17 @@
 Google OAuth service for handling authentication flow.
 """
 
-from flask import session, url_for, redirect
+from flask import session, url_for
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
+
 import config
 
 
 def get_authorization_url():
     """
     Generate the Google OAuth authorization URL.
-    
+
     Returns:
         tuple: (authorization_url, state, code_verifier)
     """
@@ -30,12 +31,12 @@ def get_authorization_url():
 def handle_oauth_callback(authorization_response, state, code_verifier):
     """
     Handle the OAuth callback after user grants permission.
-    
+
     Args:
         authorization_response: The full callback URL from Google
         state: The state parameter from the initial request
         code_verifier: The PKCE code verifier
-        
+
     Returns:
         dict: Credentials dictionary to store in session
     """
@@ -52,10 +53,10 @@ def handle_oauth_callback(authorization_response, state, code_verifier):
 def credentials_to_dict(credentials):
     """
     Convert Credentials object to dictionary for session storage.
-    
+
     Args:
         credentials: Google Credentials object
-        
+
     Returns:
         dict: Serializable credentials dictionary
     """
@@ -72,14 +73,14 @@ def credentials_to_dict(credentials):
 def get_credentials_from_session():
     """
     Retrieve and refresh credentials from session if needed.
-    
+
     Returns:
         Credentials: Google Credentials object
-        
+
     Raises:
         RuntimeError: If credentials are not available
     """
     if 'credentials' not in session:
         raise RuntimeError("No credentials found in session. Please log in first.")
-    
+
     return Credentials(**session['credentials'])
