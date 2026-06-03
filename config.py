@@ -25,6 +25,7 @@ ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx'}
 ACTIVE_SCHEDULE_FILE = RUNTIME_DIR / "active_schedule.json"
 CLEANED_DATASET_FILE = ARTIFACTS_DIR / "cleaned_dataset.csv"
 TASK_ESTIMATES_FILE = ARTIFACTS_DIR / "task_estimates.json"
+FEEDBACK_FILE = ARTIFACTS_DIR / "feedback.json"
 
 # Default Settings
 DEFAULT_ATTENTION_SPAN = 20  # minutes

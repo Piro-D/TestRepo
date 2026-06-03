@@ -7,6 +7,7 @@
 </head>
 
 <body>
+    {% set is_success_message = message and not ('Error' in message or 'failed' in message or 'Invalid' in message or 'Log in first' in message or 'Please choose' in message) %}
     <nav>
         <div class="header">
             <h1>ADHD Task Scheduler</h1>
@@ -14,15 +15,19 @@
     </nav>
 
     <div class="page">
+        {% if message and not is_success_message %}
+        <div class="message-bar">{{ message }}</div>
+        {% endif %}
+
         {% if not logged_in %}
         <div class="card login-card">
-            <div style="font-size: 48px; margin-bottom: 16px;">Calendar</div>
+            <div class="login-icon">Calendar</div>
             <p>Connect your Google Calendar to let the AI parse your assignments, estimate time, and push scheduled sessions automatically.</p>
             <a href="/authorize" class="btn">Log in with Google</a>
         </div>
         {% else %}
         
-        <div class="connection-row" style="margin-bottom: 20px;">
+        <div class="connection-row">
             <span>Connected to Google Calendar</span>
             <a href="/logout">Log Out</a>
         </div>
@@ -33,10 +38,6 @@
             <button class="tab-btn {% if active_tab == 'estimate' %}active{% endif %}" onclick="openTab('estimate')">Estimate Only</button>
             <button class="tab-btn {% if active_tab == 'schedule' %}active{% endif %}" onclick="openTab('schedule')">Schedule Only</button>
         </div>
-
-        {% if message %}
-        <div class="message-bar" style="margin-bottom: 20px;">{{ message }}</div>
-        {% endif %}
 
         <div id="tab-pipeline" class="tab-content {% if active_tab == 'pipeline' %}active{% endif %}">
             
@@ -57,7 +58,7 @@
                                 <input type="number" name="break_duration" value="{{ break_duration }}" min="0" max="60" required placeholder="mins">
                             </div>
                         </div>
-                        <div class="form-group" style="margin-top: 10px;">
+                        <div class="form-group">
                             <label>Weekly Schedule Configuration</label>
                             <div class="weekly-config-box">
                                 {% set days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] %}
@@ -82,60 +83,58 @@
                 </form>
             </div>
 
-            <div class="card" style="margin-top: 20px;">
+            <div class="card">
                 <div class="card-header">
                     <span class="card-icon">Upload</span>
                     <h3>Upload Assignment / Syllabus</h3>
                 </div>
-                <div class="status-banner warning" style="margin-bottom: 16px;">Documents will be parsed and <strong>appended</strong> to your backlog.</div>
+                <div class="status-banner warning">Documents will be parsed and <strong>appended</strong> to your backlog.</div>
                 <form action="/schedule_tasks" method="POST" enctype="multipart/form-data" data-loading-message="Analyzing your document and appending tasks to your schedule...">
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <input type="file" name="task_file" accept=".pdf,.doc,.docx" required style="padding: 10px; width: 100%; border: 1px dashed #ccc;">
+                    <div class="form-group">
+                        <input type="file" name="task_file" accept=".pdf,.doc,.docx" required>
                     </div>
                     <button type="submit" class="btn btn-green">Analyze &amp; Append to Schedule</button>
                 </form>
             </div>
 
             {% if has_saved_tasks %}
-            <div class="card" style="margin-top: 20px; border: 2px solid #4285f4;">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center;">
+            <div class="card backlog-card">
+                <div class="card-header card-header-split">
+                    <div class="card-heading-inline">
                         <span class="card-icon">Tasks</span>
-                        <h3 style="margin: 0;">Active Task Backlog</h3>
+                        <h3>Active Task Backlog</h3>
                     </div>
-                    <form action="/clear_backlog" method="POST" data-loading-message="Clearing your backlog and removing scheduled calendar blocks..." data-confirm-message="Are you sure you want to clear all tasks and calendar blocks?" style="margin:0;">
-                        <button type="submit" class="btn-remove" style="padding: 6px 12px; font-size: 12px;">Clear All</button>
+                    <form action="/clear_backlog" method="POST" data-loading-message="Clearing your backlog and removing scheduled calendar blocks..." data-confirm-message="Are you sure you want to clear all tasks and calendar blocks?">
+                        <button type="submit" class="btn-remove btn-compact">Clear All</button>
                     </form>
                 </div>
                 
-                <p style="font-size: 13px; color: #64748b; margin-top: 10px; margin-bottom: 15px;">
+                <p class="helper-text">
                     Update remaining time for partially finished tasks, or check them off. Saving will instantly rebuild your Google Calendar blocks.
                 </p>
 
                 <form action="/update_backlog" method="POST">
-                    <div style="background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 15px; max-height: 400px; overflow-y: auto;">
+                    <div class="task-backlog-list">
                         {% for task in saved_tasks %}
-                        <div class="day-row" style="padding: 10px 0; gap: 10px; border-bottom: 1px solid #edf2f7; align-items: center;">
+                        <div class="task-backlog-row">
                             <input type="hidden" name="task_ids" value="{{ task.id }}">
                             
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #16a34a; font-weight: bold; width: 80px; font-size: 14px;">
-                                <input type="checkbox" name="complete_{{ task.id }}" value="1" style="width:18px; height:18px; accent-color: #16a34a;">
+                            <label class="task-done-label">
+                                <input type="checkbox" name="complete_{{ task.id }}" value="1">
                                 Done
                             </label>
 
-                            <input type="text" name="name_{{ task.id }}" value="{{ task.name }}" required 
-                                   style="flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'DM Sans', sans-serif;">
+                            <input type="text" name="name_{{ task.id }}" value="{{ task.name }}" required>
                             
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <input type="number" name="duration_{{ task.id }}" value="{{ task.duration_minutes }}" min="1" required 
-                                       style="width: 70px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'DM Mono', monospace;">
-                                <span style="color: #64748b; font-size: 12px;">mins</span>
+                            <div class="duration-field">
+                                <input type="number" name="duration_{{ task.id }}" value="{{ task.duration_minutes }}" min="1" required>
+                                <span>mins</span>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
                     
-                    <button type="submit" class="btn" style="background: #0F9D58; margin-top: 15px; width: 100%;">Update & Resync Calendar</button>
+                    <button type="submit" class="btn btn-green">Update & Resync Calendar</button>
                 </form>
             </div>
             {% endif %}
@@ -147,17 +146,17 @@
                     <span class="card-icon">LLM</span>
                     <h3>LLM Decomposer</h3>
                 </div>
-                <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">Upload a document to see the raw task breakdown generated by the AI model. No tasks will be scheduled.</p>
-                <form action="/tool_decompose" method="POST" enctype="multipart/form-data" data-loading-message="Decomposing your document into tasks...">
+                <p class="helper-text">Upload a document to see the raw task breakdown generated by the AI model. No tasks will be scheduled.</p>
+                <form action="/tool_decompose" method="POST" enctype="multipart/form-data" class="tool-form" data-loading-message="Decomposing your document into tasks...">
                     <div class="form-group">
-                        <input type="file" name="doc_file" accept=".pdf,.doc,.docx" required style="padding: 10px; width: 100%; border: 1px dashed #ccc; margin-bottom: 15px;">
+                        <input type="file" name="doc_file" accept=".pdf,.doc,.docx" required>
                     </div>
-                    <button type="submit" class="btn" style="background: #334155;">Extract Tasks</button>
+                    <button type="submit" class="btn">Extract Tasks</button>
                 </form>
                 
                 {% if decompose_result %}
                 <div class="result-box">
-                    <pre style="margin: 0;">{{ decompose_result | tojson(indent=2) }}</pre>
+                    <pre>{{ decompose_result | tojson(indent=2) }}</pre>
                 </div>
                 {% endif %}
             </div>
@@ -169,7 +168,7 @@
                     <span class="card-icon">ML</span>
                     <h3>Machine Learning Duration Predictor</h3>
                 </div>
-                <form action="/tool_estimate" method="POST" data-loading-message="Estimating the ADHD-adjusted task duration...">
+                <form action="/tool_estimate" method="POST" class="tool-form" data-loading-message="Estimating the ADHD-adjusted task duration...">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Neurotypical Est. (Hours)</label>
@@ -181,7 +180,7 @@
                         </div>
                         <div class="form-group">
                             <label>Task Type</label>
-                            <select name="task_type" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            <select name="task_type">
                                 <option value="coding">Coding</option>
                                 <option value="writing">Writing</option>
                                 <option value="reading">Reading</option>
@@ -191,14 +190,14 @@
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="btn" style="background: #334155; margin-top: 15px;">Predict ADHD Duration</button>
+                    <button type="submit" class="btn">Predict ADHD Duration</button>
                 </form>
 
                 {% if estimate_result %}
-                <div class="status-banner info" style="margin-top: 20px; font-size: 16px; border-left-color: #8b5cf6; background: #ede9fe; color: #4c1d95;">
+                <div class="status-banner info result-summary">
                     <strong>Prediction Result:</strong><br>
                     A {{ estimate_result.hours }}h {{ estimate_result.type }} task (Level {{ estimate_result.complexity }}) will likely take an ADHD student 
-                    <span style="font-size: 20px; font-weight: bold; color: #7c3aed;">{{ estimate_result.adhd_minutes }} minutes</span>.
+                    <span>{{ estimate_result.adhd_minutes }} minutes</span>.
                 </div>
                 {% endif %}
             </div>
@@ -210,7 +209,7 @@
                     <span class="card-icon">Manual</span>
                     <h3>Manual Task Scheduler</h3>
                 </div>
-                <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">Add tasks manually to have them automatically chunked and <strong>appended</strong> to your active backlog.</p>
+                <p class="helper-text">Add tasks manually to have them automatically chunked and <strong>appended</strong> to your active backlog.</p>
                 
                 <form action="/tool_schedule" method="POST" id="manual-schedule-form" data-loading-message="Scheduling your manual tasks...">
                     <div id="task-list">
@@ -223,13 +222,37 @@
 
                     <button type="button" class="btn-add" onclick="addManualTask()">+ Add Another Task</button>
                     <input type="hidden" name="json_tasks" id="hidden_json_tasks">
-                    <button type="submit" class="btn btn-green" style="margin-top: 5px;">Append to Backlog & Schedule</button>
+                    <button type="submit" class="btn btn-green">Append to Backlog & Schedule</button>
                 </form>
             </div>
         </div>
 
         {% endif %}
     </div>
+
+    <footer class="feedback-footer">
+        <form action="/submit_feedback" method="POST" class="feedback-form">
+            <input type="hidden" name="active_tab" id="feedback-active-tab" value="{{ active_tab }}">
+            <div class="feedback-copy">
+                <h2>Feedback</h2>
+                <p>How useful was this scheduling system?</p>
+            </div>
+            <fieldset class="likert-scale" aria-label="Rate the system from 1 to 5">
+                <legend>Rating</legend>
+                {% for score in range(1, 6) %}
+                <label class="likert-option">
+                    <input type="radio" name="feedback_rating" value="{{ score }}" required>
+                    <span>{{ score }}</span>
+                </label>
+                {% endfor %}
+            </fieldset>
+            <div class="feedback-text">
+                <label for="feedback-comments">Comments</label>
+                <textarea id="feedback-comments" name="feedback_comments" rows="3" placeholder="Share what worked, what felt confusing, or what you want improved."></textarea>
+            </div>
+            <button type="submit" class="btn feedback-submit">Send Feedback</button>
+        </form>
+    </footer>
 
     <div id="loading-overlay" class="loading-overlay" aria-hidden="true">
         <div class="loading-dialog" role="status" aria-live="polite">
@@ -238,6 +261,17 @@
             <p id="loading-message">Please keep this page open.</p>
         </div>
     </div>
+
+    {% if is_success_message %}
+    <div id="success-modal" class="success-modal active" aria-hidden="false">
+        <div class="success-dialog" role="dialog" aria-modal="true" aria-labelledby="success-title">
+            <div class="success-mark">OK</div>
+            <h2 id="success-title">Success</h2>
+            <p>{{ message }}</p>
+            <button type="button" class="btn success-close">Close</button>
+        </div>
+    </div>
+    {% endif %}
 
     <script>
         function showLoading(message) {
@@ -285,12 +319,29 @@
             });
         });
 
+        const successModal = document.getElementById('success-modal');
+        if (successModal) {
+            const closeSuccessModal = () => {
+                successModal.classList.remove('active');
+                successModal.setAttribute('aria-hidden', 'true');
+            };
+
+            successModal.addEventListener('click', event => {
+                if (event.target === successModal) {
+                    closeSuccessModal();
+                }
+            });
+
+            successModal.querySelector('.success-close').addEventListener('click', closeSuccessModal);
+        }
+
         function openTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
             document.querySelector(`button[onclick="openTab('${tabName}')"]`).classList.add('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById('feedback-active-tab').value = tabName;
             
             window.history.replaceState({}, document.title, "/");
         }

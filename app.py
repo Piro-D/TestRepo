@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import datetime, timezone
 
 from flask import Flask, redirect, render_template, request, session, url_for
 
@@ -56,6 +57,27 @@ def append_tasks(tasks, new_tasks):
             }
         )
     return tasks
+
+
+def save_feedback(rating, comments):
+    feedback_entries = []
+    if config.FEEDBACK_FILE.exists():
+        try:
+            with config.FEEDBACK_FILE.open("r", encoding="utf-8") as feedback_file:
+                feedback_entries = json.load(feedback_file)
+        except (OSError, json.JSONDecodeError):
+            feedback_entries = []
+
+    feedback_entries.append(
+        {
+            "rating": rating,
+            "comments": comments,
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+    with config.FEEDBACK_FILE.open("w", encoding="utf-8") as feedback_file:
+        json.dump(feedback_entries, feedback_file, indent=4)
 
 
 def process_uploaded_file(field_name, processor):
@@ -201,6 +223,23 @@ def clear_backlog():
         except Exception:
             pass
     return redirect_home("All tasks cleared.")
+
+
+@app.route("/submit_feedback", methods=["POST"])
+def submit_feedback():
+    active_tab = request.form.get("active_tab", "pipeline")
+    comments = request.form.get("feedback_comments", "").strip()
+
+    try:
+        rating = int(request.form.get("feedback_rating", "0"))
+    except ValueError:
+        rating = 0
+
+    if rating < 1 or rating > 5:
+        return redirect_home("Please choose a feedback rating from 1 to 5.", tab=active_tab)
+
+    save_feedback(rating, comments)
+    return redirect_home("Thanks for the feedback. It helps improve the scheduler.", tab=active_tab)
 
 
 @app.route("/tool_decompose", methods=["POST"])
