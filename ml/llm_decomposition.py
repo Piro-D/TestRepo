@@ -1,32 +1,28 @@
 import contextlib
 import json
 import os
-import subprocess
 import sys
 import time
 from io import StringIO
 from pathlib import Path
 
+# Ensure the parent directory is in the path for modular imports
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-import ollama
 from PyPDF2 import PdfReader
 from docx import Document
+from groq import Groq
 
 import config
 
-
-MODEL_DIR = config.BASE_DIR / "models"
-MAX_DOCUMENT_CHARS = 4000
-DEFAULT_MODEL = "Qwen3:8B"
-DEFAULT_NUM_PREDICT = 3000
-
-MODEL_DIR.mkdir(exist_ok=True)
-os.environ["OLLAMA_MODELS"] = str(MODEL_DIR)
+# Configuration
+MAX_DOCUMENT_CHARS = 15000  # Groq handles much larger contexts than local models
+DEFAULT_MODEL = "qwen/qwen3-32b"  # Native Groq Qwen model, replicating your local architecture
 
 
 def extract_text(file_path: str) -> str:
+    """Extract text from docx or pdf files."""
     ext = os.path.splitext(file_path)[1].lower()
 
     if ext == ".docx":
@@ -40,34 +36,14 @@ def extract_text(file_path: str) -> str:
     raise ValueError("Only .pdf and .docx files are supported")
 
 
-
-
-def ensure_model(model_name: str):
-    try:
-        result = subprocess.run(
-            ["ollama", "list"],
-            capture_output=True,
-            text=True
-        )
-
-        if model_name not in result.stdout:
-            with contextlib.redirect_stdout(StringIO()), contextlib.redirect_stderr(StringIO()):
-                subprocess.run(["ollama", "pull", model_name], check=True)
-    except Exception as e:
-        raise RuntimeError(f"Failed to ensure model: {e}")
-
-
-
-
 def extract_json_payload(text: str):
-    """Try to parse JSON from a raw model response string."""
+    """Safely parse JSON from the model response string with fallback logic."""
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
     import re
-
     matcher = re.search(r"content=(?P<quote>['\"])(?P<body>.*?)(?P=quote)", text, flags=re.DOTALL)
     if matcher:
         body = matcher.group('body')
@@ -105,84 +81,79 @@ def extract_json_payload(text: str):
     raise json.JSONDecodeError(f'No valid JSON payload found. Raw output:\n{text}', text, 0)
 
 
-
-
 def generate_tasks(document_text: str, model: str = DEFAULT_MODEL) -> tuple:
     """
-    Generate tasks from document text using a faster model.
+    Generate tasks from document text using the Groq Cloud API.
     """
+    if not hasattr(config, 'GROQ_API_KEY') or not config.GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY is missing. Check your .env and config.py files.")
+
+    client = Groq(api_key=config.GROQ_API_KEY)
+
     system_prompt = (
-        "You are an academic task decomposition assistant in charge of breaking down projects into granular tasks"
-        "You will receive a project description, and you must break the project down into tasks and output ONLY a valid JSON list of those tasks and nothing else.\n"
-        "Do not further decompose tasks into subtasks.\n"
-        "Only focus on the project itself, and ignore any irrelevant information in the document that is not related to the completion of the project, such as learning outcomes and assessment criteria.\n"
-        "The JSON must contain the following information related to each task, and STRICTLY nothing else:"
-        "1. 'task_name' : A descriptive name for the task\n "
-        "2. 'task_complexity' : A scale from 1 - 5 related to the difficulty of the task\n "
-        "3. 'task_type' : A category of the task, where the category must be one of these (coding, writing, reading, problem solving, review, research, general)\n "
-        "4. 'general_estimation' : An estimation of how long the task will take in minutes for an undergraduate college student in computer science.\n"
-        "Complex tasks that are more technical have higher general estimation times, and simpler tasks should have lower general estimation times.\n"
-        "Submission is not to be included as a task.\n"
-        "Do not add any other attributes besides the mentioned attributes, and ensure that attributes are named correctly and consistently"
-        "The output must be a valid JSON list of tasks, and nothing else. Do not include any explanations or text outside the JSON. Do not hallucinate any information"
+        "You are an academic project manager specializing in high-level task summarization.\n"
+        "You will receive a project description. You must extract the major milestones dynamically based on the project's scope.\n\n"
+        "CRITICAL RULES:\n"
+        "1. DYNAMIC SCALING: Adapt the number of milestones to the project size (e.g., 2-4 tasks for a weekly assignment, 5-8 for a mid-term project, and up to 12 for a massive semester thesis). Do not artificially inflate or restrict the count.\n"
+        "2. DO NOT BE GRANULAR: Aggressively group minor deliverables (like administrative forms, citations, or submission formatting) into major phases. Every milestone must be a substantial chunk of work. Never micro-manage the steps.\n"
+        "3. EFFORT ANCHORING: Assume this is an undergraduate university assignment. Keep complexity scores realistic (mostly 2s, 3s, and 4s) so the time estimation reflects a normal student workload, not a multi-month enterprise software lifecycle.\n"
+        "4. Output ONLY a valid JSON object. Do not hallucinate any information outside the source text.\n\n"
+        "The JSON MUST be an object with a single key called \"tasks\", containing a list of task objects.\n"
+        "Each task object must contain EXACTLY these four keys:\n"
+        "1. 'task_name' : A short, descriptive name for the milestone\n"
+        "2. 'task_complexity' : A scale from 1 - 5\n"
+        "3. 'task_type' : Exactly one of (coding, writing, reading, problem solving, review, research, general)\n"
+        "4. 'general_estimation' : Estimated minutes for a college student\n\n"
+        "The output must exactly follow this structural template:\n"
+        "{\n"
+        "  \"tasks\": [\n"
+        "    {\n"
+        "      \"task_name\": \"Research and Problem Selection\",\n"
+        "      \"task_complexity\": 3,\n"
+        "      \"task_type\": \"research\",\n"
+        "      \"general_estimation\": 60\n"
+        "    }\n"
+        "  ]\n"
+        "}"
     )
 
     if len(document_text) > MAX_DOCUMENT_CHARS:
         document_text = document_text[:MAX_DOCUMENT_CHARS].rsplit(' ', 1)[0]
-        document_text += " [TRUNCATED DOCUMENT - use a smaller document for faster output]"
+        document_text += " [TRUNCATED DOCUMENT]"
 
     start_time = time.perf_counter()
+    print(f"\n🧠 [Groq API] Sending payload to {model}...", flush=True)
+
     try:
-        with contextlib.redirect_stdout(StringIO()), contextlib.redirect_stderr(StringIO()):
-            response = ollama.chat(
-                model=model,
-                messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': f"Document:\n{document_text}"}
-                ],
-                format='json',
-                options={
-                    'temperature': 0.1,
-                    'num_predict': DEFAULT_NUM_PREDICT,
-                }
-            )
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': f"Document:\n{document_text}"}
+            ],
+            response_format={"type": "json_object"},  # Forces strict JSON object structure
+            temperature=0.1
+        )
 
         elapsed = time.perf_counter() - start_time
-        raw_text = response['message']['content'] if isinstance(response, dict) and 'message' in response else str(response)
+        raw_text = response.choices[0].message.content
         parsed = extract_json_payload(raw_text)
+
         if isinstance(parsed, dict) and 'tasks' in parsed:
             return parsed['tasks'], elapsed
         return parsed, elapsed
+
     except Exception as e:
         elapsed = time.perf_counter() - start_time
-        raw_text = (
-            response['message']['content']
-            if 'response' in locals() and isinstance(response, dict)
-            else str(response)
-            if 'response' in locals()
-            else ''
-        )
-
         print("\n" + "=" * 60)
-        print("ERROR: Invalid JSON from model")
+        print(f"ERROR: Groq API Error after {elapsed:.3f}s")
         print("=" * 60)
-        print(f"Time elapsed: {elapsed:.3f}s")
-        print("\nRaw model output:")
-        print("-" * 60)
-        print(raw_text)
-        print("-" * 60)
-        print("\nError details:")
         print(str(e))
-        print("=" * 60 + "\n")
-
-        raise ValueError(
-            f"Model output was not valid JSON after {elapsed:.3f}s. See output above for raw response."
-        )
-
-
+        raise ValueError(f"Model error after {elapsed:.3f}s: {e}")
 
 
 def process_document(file_path: str) -> dict:
+    """Main Project Decomposition Function"""
     try:
         if not os.path.exists(file_path):
             return {"status": "error", "message": "File not found"}
@@ -204,18 +175,13 @@ def process_document(file_path: str) -> dict:
         }
 
 
-
-# Testing of the LLM Decomposition component using document3.pdf from TestDocuments
+# Testing of the LLM Decomposition component
 if __name__ == "__main__":
     try:
-        ensure_model(DEFAULT_MODEL)
-
-        file_path = config.BASE_DIR / "TestDocuments" / "document3.pdf"
+        # Assumes document3.docx exists in your TestDocuments folder
+        file_path = config.BASE_DIR / "TestDocuments" / "document3.docx"
         result = process_document(str(file_path))
         print(json.dumps(result, indent=4))
     except Exception as e:
-        result = {
-            "status": "error",
-            "message": str(e)
-        }
+        result = {"status": "error", "message": str(e)}
         print(json.dumps(result, indent=4))

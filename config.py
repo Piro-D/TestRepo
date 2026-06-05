@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 🌟 THE BRIDGE: Load variables from the .env file
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -10,8 +14,11 @@ UPLOAD_FOLDER = BASE_DIR / "uploads"
 for directory in (RUNTIME_DIR, ARTIFACTS_DIR, UPLOAD_FOLDER):
     directory.mkdir(exist_ok=True)
 
-# Flask Configuration
-SECRET_KEY = "super_secret_adhd_scheduler_key"
+# Security & API Keys (Loaded securely from .env)
+SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "super_secret_adhd_scheduler_key")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 # Google OAuth Configuration
 SCOPES = [
