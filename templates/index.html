@@ -235,17 +235,27 @@
             <input type="hidden" name="active_tab" id="feedback-active-tab" value="{{ active_tab }}">
             <div class="feedback-copy">
                 <h2>Feedback</h2>
-                <p>How useful was this scheduling system?</p>
+                <p>Rate the scheduling system across three areas.</p>
             </div>
-            <fieldset class="likert-scale" aria-label="Rate the system from 1 to 5">
-                <legend>Rating</legend>
-                {% for score in range(1, 6) %}
-                <label class="likert-option">
-                    <input type="radio" name="feedback_rating" value="{{ score }}" required>
-                    <span>{{ score }}</span>
-                </label>
+            <div class="feedback-ratings">
+                {% for aspect in [
+                    {"name": "feedback_usability", "label": "Usability"},
+                    {"name": "feedback_interface", "label": "Interface"},
+                    {"name": "feedback_usefulness", "label": "Usefulness"}
+                ] %}
+                <fieldset class="likert-scale" aria-label="Rate {{ aspect.label }} from 1 to 5">
+                    <legend>{{ aspect.label }}</legend>
+                    <div class="likert-options">
+                        {% for score in range(1, 6) %}
+                        <label class="likert-option">
+                            <input type="radio" name="{{ aspect.name }}" value="{{ score }}" required>
+                            <span>{{ score }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </fieldset>
                 {% endfor %}
-            </fieldset>
+            </div>
             <div class="feedback-text">
                 <label for="feedback-comments">Comments</label>
                 <textarea id="feedback-comments" name="feedback_comments" rows="3" placeholder="Share what worked, what felt confusing, or what you want improved."></textarea>

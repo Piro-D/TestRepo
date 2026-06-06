@@ -59,7 +59,7 @@ def append_tasks(tasks, new_tasks):
     return tasks
 
 
-def save_feedback(rating, comments):
+def save_feedback(ratings, comments):
     feedback_entries = []
     if config.FEEDBACK_FILE.exists():
         try:
@@ -70,7 +70,7 @@ def save_feedback(rating, comments):
 
     feedback_entries.append(
         {
-            "rating": rating,
+            "ratings": ratings,
             "comments": comments,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -229,16 +229,26 @@ def clear_backlog():
 def submit_feedback():
     active_tab = request.form.get("active_tab", "pipeline")
     comments = request.form.get("feedback_comments", "").strip()
+    rating_fields = {
+        "usability": "feedback_usability",
+        "interface": "feedback_interface",
+        "usefulness": "feedback_usefulness",
+    }
+    ratings = {}
 
-    try:
-        rating = int(request.form.get("feedback_rating", "0"))
-    except ValueError:
-        rating = 0
 
-    if rating < 1 or rating > 5:
-        return redirect_home("Please choose a feedback rating from 1 to 5.", tab=active_tab)
+    for aspect, field_name in rating_fields.items():
+        try:
+            rating = int(request.form.get(field_name, "0"))
+        except ValueError:
+            rating = 0
 
-    save_feedback(rating, comments)
+        if rating < 1 or rating > 5:
+            return redirect_home("Please rate usability, interface, and usefulness from 1 to 5.", tab=active_tab)
+
+    ratings[aspect] = rating
+
+    save_feedback(ratings, comments)
     return redirect_home("Thanks for the feedback. It helps improve the scheduler.", tab=active_tab)
 
 

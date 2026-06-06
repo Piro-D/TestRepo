@@ -6,7 +6,7 @@ if __package__ is None or __package__ == "":
 
 import config
 from ml.duration_estimator import estimate_tasks_from_llm, load_model_objects, train_evaluate_and_save
-from ml.llm_decomposition import DEFAULT_MODEL, ensure_model, process_document
+from ml.llm_decomposition import DEFAULT_MODEL, process_document
 
 
 
@@ -16,11 +16,7 @@ def estimate_project_tasks(document_path: str, buffer=1.2) -> dict:
     print("TASK ESTIMATOR - PROJECT DECOMPOSITION & DURATION ESTIMATION")
     print("=" * 60 + "\n")
 
-    print(f"Loading LLM model: {DEFAULT_MODEL}...")
-    try:
-        ensure_model(DEFAULT_MODEL)
-    except Exception as e:
-        return {"status": "error", "message": f"Failed to load LLM model: {e}"}
+    print(f"Using Groq Cloud API model: {DEFAULT_MODEL}...")
 
     print("Checking duration estimator models...")
     model, le_task = load_model_objects()

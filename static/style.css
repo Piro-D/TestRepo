@@ -591,7 +591,23 @@ input[type="radio"] {
     line-height: 1.5;
 }
 
+.feedback-ratings {
+    display: grid;
+    gap: 14px;
+}
+
 .likert-scale {
+    display: grid;
+    grid-template-columns: minmax(112px, 0.35fr) 1fr;
+    gap: 12px;
+    align-items: center;
+    max-width: 440px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.likert-options {
     display: grid;
     grid-template-columns: repeat(5, 40px);
     gap: 8px;
@@ -776,7 +792,15 @@ input[type="radio"] {
     }
 
     .likert-scale {
+        grid-template-columns: 1fr;
+    }
+
+    .likert-options {
         grid-template-columns: repeat(5, minmax(36px, 1fr));
+    }
+
+    .likert-scale legend {
+        margin-bottom: 0;
     }
 
     .likert-option span {
