@@ -1,10 +1,9 @@
 import json
-
+import uuid
+from flask import session
 import config
 
-
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-
 
 def default_settings():
     return {
@@ -16,10 +15,8 @@ def default_settings():
         },
     }
 
-
 def default_state():
     return {"tasks": [], "events": [], "settings": default_settings()}
-
 
 def normalize_state(data):
     state = default_state()
@@ -29,25 +26,31 @@ def normalize_state(data):
         state["settings"].update(data.get("settings") or {})
     return state
 
+# 🔒 PRIVACY FIX: Create unique state files per user session
+def get_user_state_file():
+    """Generates a unique JSON file path for the current user's session."""
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    return config.RUNTIME_DIR / f"schedule_{session['user_id']}.json"
 
 def load_state():
-    if not config.ACTIVE_SCHEDULE_FILE.exists():
+    user_file = get_user_state_file()
+    if not user_file.exists():
         return default_state()
 
     try:
-        with config.ACTIVE_SCHEDULE_FILE.open("r", encoding="utf-8") as state_file:
+        with user_file.open("r", encoding="utf-8") as state_file:
             return normalize_state(json.load(state_file))
     except (OSError, json.JSONDecodeError):
         return default_state()
 
-
 def save_state(tasks, events, settings=None):
+    user_file = get_user_state_file()
     current_settings = settings if settings is not None else load_state()["settings"]
     state = {"tasks": tasks, "events": events, "settings": current_settings}
 
-    with config.ACTIVE_SCHEDULE_FILE.open("w", encoding="utf-8") as state_file:
+    with user_file.open("w", encoding="utf-8") as state_file:
         json.dump(state, state_file, indent=4)
-
 
 def build_working_hours(form):
     selected_days = form.getlist("working_days")

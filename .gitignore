@@ -11,3 +11,5 @@ active_schedule.json
 cleaned_dataset.csv
 task_estimates.json
 .env
+token.json
+user_settings.json

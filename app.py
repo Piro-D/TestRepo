@@ -222,6 +222,9 @@ def clear_backlog():
             sync_calendar([])
         except Exception:
             pass
+    
+    # 🔒 Clear local state as well
+    save_state([], [])
     return redirect_home("All tasks cleared.")
 
 
@@ -236,7 +239,6 @@ def submit_feedback():
     }
     ratings = {}
 
-
     for aspect, field_name in rating_fields.items():
         try:
             rating = int(request.form.get(field_name, "0"))
@@ -246,7 +248,8 @@ def submit_feedback():
         if rating < 1 or rating > 5:
             return redirect_home("Please rate usability, interface, and usefulness from 1 to 5.", tab=active_tab)
 
-    ratings[aspect] = rating
+        # 🐛 FIX: This line was outside the loop in your original code!
+        ratings[aspect] = rating
 
     save_feedback(ratings, comments)
     return redirect_home("Thanks for the feedback. It helps improve the scheduler.", tab=active_tab)
@@ -301,5 +304,6 @@ def tool_schedule():
         return redirect_home(f"Scheduling Error: {exc}", tab="schedule")
 
 
+# 🔒 Removed debug=True for production safety
 if __name__ == "__main__":
-    app.run(port=8080, debug=True)
+    app.run(port=8080)
