@@ -10,12 +10,15 @@ from services.calendar_service import push_to_calendar
 from services.oauth_service import get_authorization_url, handle_oauth_callback
 from services.state_service import build_working_hours, load_state, save_state
 from services.upload_utils import remove_file, save_upload
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = config.SECRET_KEY
 app.config["UPLOAD_FOLDER"] = str(config.UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 
 def redirect_home(message=None, tab="pipeline"):
