@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path # 🌟 ADDED: Required for the absolute path
 
 from flask import Flask, redirect, render_template, request, session, url_for
 
@@ -63,10 +64,13 @@ def append_tasks(tasks, new_tasks):
 
 
 def save_feedback(ratings, comments):
+    # 🌟 THE FIX: Hardcoding the absolute Azure path to escape the temporary RAM
+    feedback_path = Path("/home/site/wwwroot/feedback.json")
+    
     feedback_entries = []
-    if config.FEEDBACK_FILE.exists():
+    if feedback_path.exists():
         try:
-            with config.FEEDBACK_FILE.open("r", encoding="utf-8") as feedback_file:
+            with feedback_path.open("r", encoding="utf-8") as feedback_file:
                 feedback_entries = json.load(feedback_file)
         except (OSError, json.JSONDecodeError):
             feedback_entries = []
@@ -79,7 +83,7 @@ def save_feedback(ratings, comments):
         }
     )
 
-    with config.FEEDBACK_FILE.open("w", encoding="utf-8") as feedback_file:
+    with feedback_path.open("w", encoding="utf-8") as feedback_file:
         json.dump(feedback_entries, feedback_file, indent=4)
 
 
@@ -251,7 +255,6 @@ def submit_feedback():
         if rating < 1 or rating > 5:
             return redirect_home("Please rate usability, interface, and usefulness from 1 to 5.", tab=active_tab)
 
-        # 🐛 FIX: This line was outside the loop in your original code!
         ratings[aspect] = rating
 
     save_feedback(ratings, comments)
@@ -307,6 +310,5 @@ def tool_schedule():
         return redirect_home(f"Scheduling Error: {exc}", tab="schedule")
 
 
-# 🔒 Removed debug=True for production safety
 if __name__ == "__main__":
     app.run(port=8080)
