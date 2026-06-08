@@ -24,13 +24,6 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # --- Helper Functions ---
 
-def get_current_user():
-    """Retrieves or generates a unique user ID for the current session."""
-    if 'user_id' not in session:
-        session['user_id'] = f"user_{uuid.uuid4().hex[:12]}"
-    return session['user_id']
-
-
 def redirect_home(message=None, tab="pipeline"):
     params = {"tab": tab}
     if message:
@@ -44,9 +37,9 @@ def require_login(tab="pipeline"):
     return None
 
 
-def sync_calendar(tasks, user_id):
-    """Synchronizes tasks to the calendar using the user's specific state."""
-    state = load_state(user_id)
+def sync_calendar(tasks):
+    """Synchronizes tasks to the calendar using the persistent state."""
+    state = load_state()
     sync_data = dict(session)
     sync_data.update(
         {
@@ -58,7 +51,7 @@ def sync_calendar(tasks, user_id):
     )
 
     new_event_ids = push_to_calendar(tasks, sync_data)
-    save_state(user_id, tasks, new_event_ids, state["settings"])
+    save_state(tasks, new_event_ids, state["settings"])
 
 
 def append_tasks(tasks, new_tasks):
@@ -112,8 +105,7 @@ def process_uploaded_file(field_name, processor):
 
 @app.route("/")
 def index():
-    current_user = get_current_user()
-    state = load_state(current_user)
+    state = load_state()
 
     return render_template(
         "index.html",
@@ -153,9 +145,6 @@ def oauth2callback():
         session.pop("state", None)
         session.pop("code_verifier", None)
         
-        # Ensure they have a unique user ID immediately upon logging in
-        get_current_user()
-        
         return redirect(url_for("index"))
     except Exception as exc:
         return redirect_home(f"OAuth Callback Error: {exc}")
@@ -169,19 +158,18 @@ def logout():
 
 @app.route("/update_settings", methods=["POST"])
 def update_settings():
-    current_user = get_current_user()
-    state = load_state(current_user)
+    state = load_state()
     
     settings = state["settings"]
     settings["attention_span"] = int(request.form.get("span", config.DEFAULT_ATTENTION_SPAN))
     settings["break_duration"] = int(request.form.get("break_duration", config.DEFAULT_BREAK_DURATION))
     settings["working_hours_config"] = build_working_hours(request.form)
 
-    save_state(current_user, state["tasks"], state.get("events", []), settings)
+    save_state(state["tasks"], state.get("events", []), settings)
 
     if state["tasks"] and "credentials" in session:
         try:
-            sync_calendar(state["tasks"], current_user)
+            sync_calendar(state["tasks"])
             return redirect_home("Settings saved and calendar updated.")
         except Exception as exc:
             return redirect_home(f"Settings saved, but calendar update failed: {exc}")
@@ -201,12 +189,11 @@ def schedule_tasks():
     if not new_tasks:
         return redirect_home("AI processing failed.")
 
-    current_user = get_current_user()
-    state = load_state(current_user)
+    state = load_state()
     updated_tasks = append_tasks(state["tasks"], new_tasks)
 
     try:
-        sync_calendar(updated_tasks, current_user)
+        sync_calendar(updated_tasks)
         return redirect_home("Document parsed. Tasks appended to backlog and scheduled.")
     except Exception as exc:
         return redirect_home(f"Scheduling failed: {exc}")
@@ -218,8 +205,7 @@ def update_backlog():
     if login_redirect:
         return login_redirect
 
-    current_user = get_current_user()
-    state = load_state(current_user)
+    state = load_state()
     updated_tasks = []
 
     for task_id in request.form.getlist("task_ids"):
@@ -236,7 +222,7 @@ def update_backlog():
         updated_tasks.append(task)
 
     try:
-        sync_calendar(updated_tasks, current_user)
+        sync_calendar(updated_tasks)
         return redirect_home("Backlog updated and calendar synced.")
     except Exception as exc:
         return redirect_home(f"Update saved, but calendar sync failed: {exc}")
@@ -244,16 +230,14 @@ def update_backlog():
 
 @app.route("/clear_backlog", methods=["POST"])
 def clear_backlog():
-    current_user = get_current_user()
-    
     if "credentials" in session:
         try:
-            sync_calendar([], current_user)
+            sync_calendar([])
         except Exception:
             pass
     
-    # Clear database state for this specific user
-    save_state(current_user, [], [], load_state(current_user)["settings"])
+    # Clear database state
+    save_state([], [], load_state()["settings"])
     return redirect_home("All tasks cleared.")
 
 
@@ -322,10 +306,9 @@ def tool_schedule():
 
     try:
         tasks = json.loads(request.form.get("json_tasks", "[]"))
-        current_user = get_current_user()
-        state = load_state(current_user)
+        state = load_state()
         updated_tasks = append_tasks(state["tasks"], tasks)
-        sync_calendar(updated_tasks, current_user)
+        sync_calendar(updated_tasks)
         return redirect_home("Custom tasks appended to backlog and scheduled.", tab="schedule")
     except json.JSONDecodeError:
         return redirect_home("Invalid JSON format.", tab="schedule")
