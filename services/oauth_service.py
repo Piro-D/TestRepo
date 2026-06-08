@@ -27,7 +27,7 @@ def get_authorization_url():
         secure_redirect = url_for('oauth2callback', _external=True).replace('http://', 'https://')
         flow.redirect_uri = secure_redirect
         
-        authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
+        authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent')
         return authorization_url, state, flow.code_verifier
     except Exception as e:
         raise RuntimeError(f"Google OAuth Error: {str(e)}")
