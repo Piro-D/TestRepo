@@ -9,6 +9,7 @@ from googleapiclient.discovery import build
 import config
 from services.oauth_service import get_credentials_from_session
 
+WIB = datetime.timezone(datetime.timedelta(hours=7), name="WIB")
 
 def get_calendar_service():
     """
@@ -178,19 +179,6 @@ def build_focus_sessions(ml_tasks, attention_span):
 
 
 def push_to_calendar(ml_tasks, session_data):
-    """
-    Clear old events and push new focus sessions to Google Calendar.
-
-    Args:
-        ml_tasks: List of tasks processed by ML pipeline
-        session_data: User session data with credentials and settings
-
-    Returns:
-        list: IDs of newly created events
-
-    Raises:
-        RuntimeError: If calendar operations fail
-    """
     service = get_calendar_service()
 
     if 'active_event_ids' in session_data:
@@ -203,7 +191,8 @@ def push_to_calendar(ml_tasks, session_data):
     attention_span = session_data.get('attention_span', config.DEFAULT_ATTENTION_SPAN)
     schedule = build_focus_sessions(ml_tasks, attention_span)
 
-    now = datetime.datetime.now().astimezone()
+    # 🌟 FIX 1: Force the current time to be WIB (UTC+7) instead of server UTC
+    now = datetime.datetime.now(WIB)
     search_horizon = now + datetime.timedelta(days=config.SCHEDULING_HORIZON_DAYS)
     busy_intervals = get_busy_intervals(service, now, search_horizon)
 
@@ -230,12 +219,14 @@ def push_to_calendar(ml_tasks, session_data):
                 [f"- {t['name']} ({t['duration']}m)" for t in sess]
             )
 
+            # 🌟 FIX 2: Remove the hardcoded 'timeZone': 'UTC' tags. 
+            # Because slot_start is now in WIB, isoformat() automatically tells Google the correct timezone!
             event = {
                 'summary': f'Focus Session {i}',
                 'description': desc,
                 'colorId': '11',
-                'start': {'dateTime': slot_start.isoformat(), 'timeZone': 'UTC'},
-                'end': {'dateTime': slot_end.isoformat(), 'timeZone': 'UTC'},
+                'start': {'dateTime': slot_start.isoformat()},
+                'end': {'dateTime': slot_end.isoformat()},
             }
 
             event_result = service.events().insert(calendarId='primary', body=event).execute()
