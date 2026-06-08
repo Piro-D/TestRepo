@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-# 🌟 THE AZURE PERSISTENCE FIX (The only change kept)
+# 🌟 THE AZURE PERSISTENCE FIX
 if os.environ.get("WEBSITE_SITE_NAME"):
     PERSISTENT_DIR = Path("/home/data")
 else:
@@ -44,13 +44,20 @@ def save_state(tasks, active_event_ids, settings):
 def build_working_hours(form_data):
     working_hours = {}
     
-    # EXACT ORIGINAL LOGIC: Lowercase names, AM/PM format, Dict structure
+    # The UI expects lowercase keys
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     
     for day in days:
-        if form_data.get(day):
-            start = form_data.get(f"{day}_start", "08:00 AM")
-            end = form_data.get(f"{day}_end", "08:00 PM")
+        # Catch the checkbox whether HTML sent it as 'monday' or 'Monday'
+        if form_data.get(day) or form_data.get(day.capitalize()):
+            start = form_data.get(f"{day}_start") or form_data.get(f"{day.capitalize()}_start") or "08:00"
+            end = form_data.get(f"{day}_end") or form_data.get(f"{day.capitalize()}_end") or "20:00"
+            
+            # STRICT HTML5 FIX: Eradicate any AM/PM strings so the UI time-picker doesn't crash
+            start = start.replace(" AM", "").replace(" PM", "").strip()
+            end = end.replace(" AM", "").replace(" PM", "").strip()
+            
+            # Return it exactly how the UI expects to read it
             working_hours[day] = {"start": start, "end": end}
             
     return working_hours
