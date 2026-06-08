@@ -17,7 +17,7 @@ def load_state():
         try:
             with STATE_FILE.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-                # Safety wipe: If old user_id format is accidentally loaded, ignore it
+                # Safely ignore any old database user_id strings if they are stuck in the file
                 if data and any(k.startswith("user_") for k in data.keys()):
                     pass
                 elif "settings" in data:
@@ -48,23 +48,22 @@ def save_state(tasks, active_event_ids, settings):
         json.dump(state_data, f, indent=4)
 
 def build_working_hours(form_data):
-    """Parses the HTML form and correctly structures it for the calendar service."""
+    """Parses the HTML form matching the original UI format."""
     working_hours = {}
-    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    # Restored to original lowercase format for the UI
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     
     for day in days:
-        day_lower = day.lower()
-        
-        # Check if the frontend sent the checkbox as 'monday' or 'Monday'
-        if form_data.get(day_lower) or form_data.get(day):
-            start = form_data.get(f"{day_lower}_start") or form_data.get(f"{day}_start") or "08:00"
-            end = form_data.get(f"{day_lower}_end") or form_data.get(f"{day}_end") or "20:00"
+        if form_data.get(day):
+            start = form_data.get(f"{day}_start", "08:00")
+            end = form_data.get(f"{day}_end", "20:00")
             
-            # Clean up AM/PM formats just in case; Calendar expects strictly "HH:MM"
+            # Clean up AM/PM formats just in case
             start = start.replace(" AM", "").replace(" PM", "").strip()
             end = end.replace(" AM", "").replace(" PM", "").strip()
             
-            # IMPORTANT: calendar_service expects a LIST of blocks!
-            working_hours[day] = [{"start": start, "end": end}]
+            # Restored to original dictionary format so the UI saves correctly
+            working_hours[day] = {"start": start, "end": end}
             
     return working_hours

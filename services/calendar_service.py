@@ -65,34 +65,37 @@ def get_busy_intervals(service, time_min, time_max):
 
 def is_within_working_hours(target_start, target_end, working_hours_config):
     """
-    Check if a time slot falls within working hours based on the per-day dictionary.
-
-    Args:
-        target_start: Start datetime
-        target_end: End datetime
-        working_hours_config: Dict mapping day names to working hour blocks
-
-    Returns:
-        bool: True if slot is within working hours
+    Check if a time slot falls within working hours.
+    Now supports the lowercase UI format automatically.
     """
-    day_name = target_start.strftime("%A")
+    # Convert calendar's "Monday" to UI's "monday"
+    day_name = target_start.strftime("%A").lower()
 
     if day_name not in working_hours_config:
         return False
 
-    for block in working_hours_config[day_name]:
-        allowed_start_dt = datetime.datetime.combine(
-            target_start.date(),
-            datetime.datetime.strptime(block["start"], "%H:%M").time()
-        ).replace(tzinfo=target_start.tzinfo)
+    day_config = working_hours_config[day_name]
+    
+    # Handle the UI format (dictionary) or the old format (list)
+    blocks = day_config if isinstance(day_config, list) else [day_config]
 
-        allowed_end_dt = datetime.datetime.combine(
-            target_start.date(),
-            datetime.datetime.strptime(block["end"], "%H:%M").time()
-        ).replace(tzinfo=target_start.tzinfo)
+    for block in blocks:
+        try:
+            allowed_start_dt = datetime.datetime.combine(
+                target_start.date(),
+                datetime.datetime.strptime(block["start"], "%H:%M").time()
+            ).replace(tzinfo=target_start.tzinfo)
 
-        if target_start >= allowed_start_dt and target_end <= allowed_end_dt:
-            return True
+            allowed_end_dt = datetime.datetime.combine(
+                target_start.date(),
+                datetime.datetime.strptime(block["end"], "%H:%M").time()
+            ).replace(tzinfo=target_start.tzinfo)
+
+            if target_start >= allowed_start_dt and target_end <= allowed_end_dt:
+                return True
+        except ValueError as e:
+            print(f"Time parsing error: {e}")
+            pass # Skip malformed time blocks
 
     return False
 
@@ -207,10 +210,12 @@ def push_to_calendar(ml_tasks, session_data):
     search_horizon = now + datetime.timedelta(days=config.SCHEDULING_HORIZON_DAYS)
     busy_intervals = get_busy_intervals(service, now, search_horizon)
 
+    # Ensure default config uses the UI's lowercase format
     default_config = {
-        day: [{"start": "08:00", "end": "20:00"}]
-        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        day: {"start": "08:00", "end": "20:00"}
+        for day in ["monday", "tuesday", "wednesday", "thursday", "friday"]
     }
+    working_hours_config = session_data.get('working_hours_config', default_config)
     working_hours_config = session_data.get('working_hours_config', default_config)
 
     current_search_time = now
