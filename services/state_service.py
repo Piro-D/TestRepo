@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-# 🌟 THE AZURE PERSISTENCE FIX
+# 🌟 THE AZURE PERSISTENCE FIX (The only change kept)
 if os.environ.get("WEBSITE_SITE_NAME"):
     PERSISTENT_DIR = Path("/home/data")
 else:
@@ -12,20 +12,15 @@ PERSISTENT_DIR.mkdir(parents=True, exist_ok=True)
 STATE_FILE = PERSISTENT_DIR / "active_schedule.json"
 
 def load_state():
-    """Reads the schedule from the persistent JSON file."""
     if STATE_FILE.exists():
         try:
             with STATE_FILE.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-                # Safely ignore any old database user_id strings if they are stuck in the file
-                if data and any(k.startswith("user_") for k in data.keys()):
-                    pass
-                elif "settings" in data:
+                if data and "settings" in data:
                     return data
         except (OSError, json.JSONDecodeError):
             pass
             
-    # Default empty state
     return {
         "tasks": [],
         "events": [],
@@ -37,7 +32,6 @@ def load_state():
     }
 
 def save_state(tasks, active_event_ids, settings):
-    """Saves the schedule to the persistent JSON file."""
     state_data = {
         "tasks": tasks,
         "events": active_event_ids,
@@ -48,22 +42,15 @@ def save_state(tasks, active_event_ids, settings):
         json.dump(state_data, f, indent=4)
 
 def build_working_hours(form_data):
-    """Parses the HTML form matching the original UI format."""
     working_hours = {}
     
-    # Restored to original lowercase format for the UI
+    # EXACT ORIGINAL LOGIC: Lowercase names, AM/PM format, Dict structure
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     
     for day in days:
         if form_data.get(day):
-            start = form_data.get(f"{day}_start", "08:00")
-            end = form_data.get(f"{day}_end", "20:00")
-            
-            # Clean up AM/PM formats just in case
-            start = start.replace(" AM", "").replace(" PM", "").strip()
-            end = end.replace(" AM", "").replace(" PM", "").strip()
-            
-            # Restored to original dictionary format so the UI saves correctly
+            start = form_data.get(f"{day}_start", "08:00 AM")
+            end = form_data.get(f"{day}_end", "08:00 PM")
             working_hours[day] = {"start": start, "end": end}
             
     return working_hours

@@ -212,10 +212,9 @@ def push_to_calendar(ml_tasks, session_data):
 
     # Ensure default config uses the UI's lowercase format
     default_config = {
-        day: {"start": "08:00", "end": "20:00"}
+        day: {"start": "08:00 AM", "end": "08:00 PM"}
         for day in ["monday", "tuesday", "wednesday", "thursday", "friday"]
     }
-    working_hours_config = session_data.get('working_hours_config', default_config)
     working_hours_config = session_data.get('working_hours_config', default_config)
 
     current_search_time = now
