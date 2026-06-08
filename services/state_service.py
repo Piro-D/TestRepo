@@ -2,7 +2,7 @@ import os
 from pymongo import MongoClient
 
 # Initialize MongoDB connection safely
-mongo_uri = os.environ.get("MONGO_URI")
+mongo_uri = "mongodb+srv://MLAdmin:TestPass1234@mlproject.8tzzzh8.mongodb.net/?appName=MLProject"
 client = MongoClient(mongo_uri) if mongo_uri else None
 
 def get_state_collection():
