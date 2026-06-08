@@ -13,14 +13,12 @@ from services.state_service import build_working_hours, load_state, save_state
 from services.upload_utils import remove_file, save_upload
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = config.SECRET_KEY
 app.config["UPLOAD_FOLDER"] = str(config.UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
 
 # --- Helper Functions ---
 
@@ -30,15 +28,12 @@ def redirect_home(message=None, tab="pipeline"):
         params["message"] = message
     return redirect(url_for("index", **params))
 
-
 def require_login(tab="pipeline"):
     if "credentials" not in session:
         return redirect_home("Log in first.", tab=tab)
     return None
 
-
 def sync_calendar(tasks):
-    """Synchronizes tasks to the calendar using the persistent state."""
     state = load_state()
     sync_data = dict(session)
     sync_data.update(
@@ -53,7 +48,6 @@ def sync_calendar(tasks):
     new_event_ids = push_to_calendar(tasks, sync_data)
     save_state(tasks, new_event_ids, state["settings"])
 
-
 def append_tasks(tasks, new_tasks):
     for task in new_tasks:
         tasks.append(
@@ -65,17 +59,16 @@ def append_tasks(tasks, new_tasks):
         )
     return tasks
 
-
 def save_feedback(ratings, comments):
     feedback_path = Path("/home/site/wwwroot/feedback.json")
-    
     feedback_entries = []
+    
     if feedback_path.exists():
         try:
             with feedback_path.open("r", encoding="utf-8") as feedback_file:
                 feedback_entries = json.load(feedback_file)
         except (OSError, json.JSONDecodeError):
-            feedback_entries = []
+            pass
 
     feedback_entries.append(
         {
@@ -88,7 +81,6 @@ def save_feedback(ratings, comments):
     with feedback_path.open("w", encoding="utf-8") as feedback_file:
         json.dump(feedback_entries, feedback_file, indent=4)
 
-
 def process_uploaded_file(field_name, processor):
     file = request.files.get(field_name)
     if not file or file.filename == "":
@@ -99,7 +91,6 @@ def process_uploaded_file(field_name, processor):
         return processor(filepath), None
     finally:
         remove_file(filepath)
-
 
 # --- Application Routes ---
 
@@ -121,7 +112,6 @@ def index():
         has_saved_tasks=bool(state["tasks"]),
     )
 
-
 @app.route("/authorize")
 def authorize():
     try:
@@ -131,7 +121,6 @@ def authorize():
         return redirect(authorization_url)
     except Exception as exc:
         return redirect_home(f"Google OAuth Error: {exc}")
-
 
 @app.route("/oauth2callback")
 def oauth2callback():
@@ -144,22 +133,18 @@ def oauth2callback():
         session["credentials"] = credentials
         session.pop("state", None)
         session.pop("code_verifier", None)
-        
         return redirect(url_for("index"))
     except Exception as exc:
         return redirect_home(f"OAuth Callback Error: {exc}")
-
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("index"))
 
-
 @app.route("/update_settings", methods=["POST"])
 def update_settings():
     state = load_state()
-    
     settings = state["settings"]
     settings["attention_span"] = int(request.form.get("span", config.DEFAULT_ATTENTION_SPAN))
     settings["break_duration"] = int(request.form.get("break_duration", config.DEFAULT_BREAK_DURATION))
@@ -175,7 +160,6 @@ def update_settings():
             return redirect_home(f"Settings saved, but calendar update failed: {exc}")
 
     return redirect_home("Schedule configuration saved.")
-
 
 @app.route("/schedule_tasks", methods=["POST"])
 def schedule_tasks():
@@ -197,7 +181,6 @@ def schedule_tasks():
         return redirect_home("Document parsed. Tasks appended to backlog and scheduled.")
     except Exception as exc:
         return redirect_home(f"Scheduling failed: {exc}")
-
 
 @app.route("/update_backlog", methods=["POST"])
 def update_backlog():
@@ -227,7 +210,6 @@ def update_backlog():
     except Exception as exc:
         return redirect_home(f"Update saved, but calendar sync failed: {exc}")
 
-
 @app.route("/clear_backlog", methods=["POST"])
 def clear_backlog():
     if "credentials" in session:
@@ -235,11 +217,9 @@ def clear_backlog():
             sync_calendar([])
         except Exception:
             pass
-    
-    # Clear database state
+            
     save_state([], [], load_state()["settings"])
     return redirect_home("All tasks cleared.")
-
 
 @app.route("/submit_feedback", methods=["POST"])
 def submit_feedback():
@@ -266,7 +246,6 @@ def submit_feedback():
     save_feedback(ratings, comments)
     return redirect_home("Thanks for the feedback. It helps improve the scheduler.", tab=active_tab)
 
-
 @app.route("/tool_decompose", methods=["POST"])
 def tool_decompose():
     result, error = process_uploaded_file("doc_file", decompose_document)
@@ -277,7 +256,6 @@ def tool_decompose():
         session["decompose_result"] = result.get("tasks")
         return redirect_home("Decomposition complete.", tab="decompose")
     return redirect_home(f"Error: {result.get('message')}", tab="decompose")
-
 
 @app.route("/tool_estimate", methods=["POST"])
 def tool_estimate():
@@ -297,7 +275,6 @@ def tool_estimate():
     except Exception as exc:
         return redirect_home(f"Estimation Error: {exc}", tab="estimate")
 
-
 @app.route("/tool_schedule", methods=["POST"])
 def tool_schedule():
     login_redirect = require_login(tab="schedule")
@@ -314,7 +291,6 @@ def tool_schedule():
         return redirect_home("Invalid JSON format.", tab="schedule")
     except Exception as exc:
         return redirect_home(f"Scheduling Error: {exc}", tab="schedule")
-
 
 if __name__ == "__main__":
     app.run(port=8080)
