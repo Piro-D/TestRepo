@@ -1,67 +1,65 @@
 import json
-import os
-from pathlib import Path
+import uuid
+from flask import session
+import config
 
-# 🌟 THE AZURE PERSISTENCE FIX
-if os.environ.get("WEBSITE_SITE_NAME"):
-    PERSISTENT_DIR = Path("/home/data")
-else:
-    PERSISTENT_DIR = Path(__file__).resolve().parent.parent / "artifacts"
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
-PERSISTENT_DIR.mkdir(parents=True, exist_ok=True)
+def default_settings():
+    return {
+        "attention_span": config.DEFAULT_ATTENTION_SPAN,
+        "break_duration": config.DEFAULT_BREAK_DURATION,
+        "working_hours_config": {
+            day: [{"start": config.DEFAULT_WORK_START, "end": config.DEFAULT_WORK_END}]
+            for day in WEEKDAYS
+        },
+    }
 
-# 🌟 EXACT ORIGINAL FILENAME RESTORED
-STATE_FILE = PERSISTENT_DIR / "state.json"
+def default_state():
+    return {"tasks": [], "events": [], "settings": default_settings()}
+
+def normalize_state(data):
+    state = default_state()
+    if isinstance(data, dict):
+        state["tasks"] = data.get("tasks") or []
+        state["events"] = data.get("events") or []
+        state["settings"].update(data.get("settings") or {})
+    return state
+
+# 🔒 PRIVACY FIX: Create unique state files per user session
+def get_user_state_file():
+    """Generates a unique JSON file path for the current user's session."""
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    return config.RUNTIME_DIR / f"schedule_{session['user_id']}.json"
 
 def load_state():
-    if STATE_FILE.exists():
-        try:
-            with STATE_FILE.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-                if data and "settings" in data:
-                    return data
-        except (OSError, json.JSONDecodeError):
-            pass
-            
+    user_file = get_user_state_file()
+    if not user_file.exists():
+        return default_state()
+
+    try:
+        with user_file.open("r", encoding="utf-8") as state_file:
+            return normalize_state(json.load(state_file))
+    except (OSError, json.JSONDecodeError):
+        return default_state()
+
+def save_state(tasks, events, settings=None):
+    user_file = get_user_state_file()
+    current_settings = settings if settings is not None else load_state()["settings"]
+    state = {"tasks": tasks, "events": events, "settings": current_settings}
+
+    with user_file.open("w", encoding="utf-8") as state_file:
+        json.dump(state, state_file, indent=4)
+
+def build_working_hours(form):
+    selected_days = form.getlist("working_days")
     return {
-        "tasks": [],
-        "events": [],
-        "settings": {
-            "attention_span": 25,
-            "break_duration": 5,
-            "working_hours_config": {}
-        }
+        day: [
+            {
+                "start": form.get(f"{day}_start", config.DEFAULT_WORK_START),
+                "end": form.get(f"{day}_end", config.DEFAULT_WORK_END),
+            }
+        ]
+        for day in selected_days
     }
-
-def save_state(tasks, active_event_ids, settings):
-    state_data = {
-        "tasks": tasks,
-        "events": active_event_ids,
-        "settings": settings
-    }
-    
-    with STATE_FILE.open("w", encoding="utf-8") as f:
-        json.dump(state_data, f, indent=4)
-
-def build_working_hours(form_data):
-    working_hours = {}
-    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    
-    # Converts every single HTML key to lowercase so it cannot miss
-    form_lower = {k.lower(): v for k, v in form_data.items()}
-    
-    for day in days:
-        if day in form_lower:
-            start = form_lower.get(f"{day}_start", "08:00")
-            end = form_lower.get(f"{day}_end", "20:00")
-            
-            # HTML5 TIME FIX: Strips any AM/PM text so the browser time-picker doesn't crash
-            start = start.upper().replace(" AM", "").replace(" PM", "").strip()
-            end = end.upper().replace(" AM", "").replace(" PM", "").strip()
-            
-            if len(start) > 5: start = start[:5]
-            if len(end) > 5: end = end[:5]
-            
-            working_hours[day] = {"start": start, "end": end}
-            
-    return working_hours

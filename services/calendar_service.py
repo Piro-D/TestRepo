@@ -64,33 +64,35 @@ def get_busy_intervals(service, time_min, time_max):
 
 
 def is_within_working_hours(target_start, target_end, working_hours_config):
-    # Match the UI's lowercase format ('monday')
-    day_name = target_start.strftime("%A").lower()
+    """
+    Check if a time slot falls within working hours based on the per-day dictionary.
+
+    Args:
+        target_start: Start datetime
+        target_end: End datetime
+        working_hours_config: Dict mapping day names to working hour blocks
+
+    Returns:
+        bool: True if slot is within working hours
+    """
+    day_name = target_start.strftime("%A")
 
     if day_name not in working_hours_config:
         return False
 
-    day_config = working_hours_config[day_name]
-    blocks = day_config if isinstance(day_config, list) else [day_config]
+    for block in working_hours_config[day_name]:
+        allowed_start_dt = datetime.datetime.combine(
+            target_start.date(),
+            datetime.datetime.strptime(block["start"], "%H:%M").time()
+        ).replace(tzinfo=target_start.tzinfo)
 
-    for block in blocks:
-        try:
-            # Strictly parse 24-hour format
-            allowed_start_dt = datetime.datetime.combine(
-                target_start.date(),
-                datetime.datetime.strptime(block["start"], "%H:%M").time()
-            ).replace(tzinfo=target_start.tzinfo)
+        allowed_end_dt = datetime.datetime.combine(
+            target_start.date(),
+            datetime.datetime.strptime(block["end"], "%H:%M").time()
+        ).replace(tzinfo=target_start.tzinfo)
 
-            allowed_end_dt = datetime.datetime.combine(
-                target_start.date(),
-                datetime.datetime.strptime(block["end"], "%H:%M").time()
-            ).replace(tzinfo=target_start.tzinfo)
-
-            if target_start >= allowed_start_dt and target_end <= allowed_end_dt:
-                return True
-        except Exception as e:
-            print(f"Time parsing error: {e}")
-            pass
+        if target_start >= allowed_start_dt and target_end <= allowed_end_dt:
+            return True
 
     return False
 
@@ -206,8 +208,8 @@ def push_to_calendar(ml_tasks, session_data):
     busy_intervals = get_busy_intervals(service, now, search_horizon)
 
     default_config = {
-        day: {"start": "08:00", "end": "20:00"}
-        for day in ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        day: [{"start": "08:00", "end": "20:00"}]
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     }
     working_hours_config = session_data.get('working_hours_config', default_config)
 
