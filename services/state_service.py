@@ -1,65 +1,64 @@
-import json
-import uuid
-from flask import session
-import config
+import os
+from pymongo import MongoClient
 
-WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+# Initialize MongoDB connection safely
+mongo_uri = os.environ.get("MONGO_URI")
+client = MongoClient(mongo_uri) if mongo_uri else None
 
-def default_settings():
-    return {
-        "attention_span": config.DEFAULT_ATTENTION_SPAN,
-        "break_duration": config.DEFAULT_BREAK_DURATION,
-        "working_hours_config": {
-            day: [{"start": config.DEFAULT_WORK_START, "end": config.DEFAULT_WORK_END}]
-            for day in WEEKDAYS
-        },
-    }
+def get_state_collection():
+    """Helper function to fetch the collection."""
+    if not client:
+        raise RuntimeError("MONGO_URI environment variable is missing. Check Azure Configuration.")
+    db = client['task_scheduler_db']
+    return db['state']
 
-def default_state():
-    return {"tasks": [], "events": [], "settings": default_settings()}
-
-def normalize_state(data):
-    state = default_state()
-    if isinstance(data, dict):
-        state["tasks"] = data.get("tasks") or []
-        state["events"] = data.get("events") or []
-        state["settings"].update(data.get("settings") or {})
+def load_state(user_id):
+    """Fetches the state ONLY for the specific user."""
+    collection = get_state_collection()
+    state = collection.find_one({"user_id": user_id})
+    
+    if not state:
+        return {
+            "user_id": user_id,
+            "tasks": [],
+            "events": [],
+            "settings": {
+                "attention_span": 25,
+                "break_duration": 5,
+                "working_hours_config": {}
+            }
+        }
+    
+    # Remove the hidden MongoDB object ID so it doesn't break Flask
+    state.pop('_id', None)
     return state
 
-# 🔒 PRIVACY FIX: Create unique state files per user session
-def get_user_state_file():
-    """Generates a unique JSON file path for the current user's session."""
-    if 'user_id' not in session:
-        session['user_id'] = str(uuid.uuid4())
-    return config.RUNTIME_DIR / f"schedule_{session['user_id']}.json"
-
-def load_state():
-    user_file = get_user_state_file()
-    if not user_file.exists():
-        return default_state()
-
-    try:
-        with user_file.open("r", encoding="utf-8") as state_file:
-            return normalize_state(json.load(state_file))
-    except (OSError, json.JSONDecodeError):
-        return default_state()
-
-def save_state(tasks, events, settings=None):
-    user_file = get_user_state_file()
-    current_settings = settings if settings is not None else load_state()["settings"]
-    state = {"tasks": tasks, "events": events, "settings": current_settings}
-
-    with user_file.open("w", encoding="utf-8") as state_file:
-        json.dump(state, state_file, indent=4)
-
-def build_working_hours(form):
-    selected_days = form.getlist("working_days")
-    return {
-        day: [
-            {
-                "start": form.get(f"{day}_start", config.DEFAULT_WORK_START),
-                "end": form.get(f"{day}_end", config.DEFAULT_WORK_END),
-            }
-        ]
-        for day in selected_days
+def save_state(user_id, tasks, active_event_ids, settings):
+    """Overwrites the database ONLY for the specific user."""
+    collection = get_state_collection()
+    new_state = {
+        "user_id": user_id,
+        "tasks": tasks,
+        "events": active_event_ids,
+        "settings": settings
     }
+    
+    collection.replace_one(
+        {"user_id": user_id},
+        new_state,
+        upsert=True
+    )
+
+def build_working_hours(form_data):
+    """Parses the HTML form to build the weekly schedule dictionary."""
+    working_hours = {}
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    
+    for day in days:
+        # Check if the day's checkbox was ticked in the form
+        if form_data.get(day):
+            start = form_data.get(f"{day}_start", "08:00 AM")
+            end = form_data.get(f"{day}_end", "08:00 PM")
+            working_hours[day] = {"start": start, "end": end}
+            
+    return working_hours
