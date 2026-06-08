@@ -9,7 +9,9 @@ else:
     PERSISTENT_DIR = Path(__file__).resolve().parent.parent / "artifacts"
 
 PERSISTENT_DIR.mkdir(parents=True, exist_ok=True)
-STATE_FILE = PERSISTENT_DIR / "active_schedule.json"
+
+# 🌟 EXACT ORIGINAL FILENAME RESTORED
+STATE_FILE = PERSISTENT_DIR / "state.json"
 
 def load_state():
     if STATE_FILE.exists():
@@ -43,21 +45,23 @@ def save_state(tasks, active_event_ids, settings):
 
 def build_working_hours(form_data):
     working_hours = {}
-    
-    # The UI expects lowercase keys
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     
+    # Converts every single HTML key to lowercase so it cannot miss
+    form_lower = {k.lower(): v for k, v in form_data.items()}
+    
     for day in days:
-        # Catch the checkbox whether HTML sent it as 'monday' or 'Monday'
-        if form_data.get(day) or form_data.get(day.capitalize()):
-            start = form_data.get(f"{day}_start") or form_data.get(f"{day.capitalize()}_start") or "08:00"
-            end = form_data.get(f"{day}_end") or form_data.get(f"{day.capitalize()}_end") or "20:00"
+        if day in form_lower:
+            start = form_lower.get(f"{day}_start", "08:00")
+            end = form_lower.get(f"{day}_end", "20:00")
             
-            # STRICT HTML5 FIX: Eradicate any AM/PM strings so the UI time-picker doesn't crash
-            start = start.replace(" AM", "").replace(" PM", "").strip()
-            end = end.replace(" AM", "").replace(" PM", "").strip()
+            # HTML5 TIME FIX: Strips any AM/PM text so the browser time-picker doesn't crash
+            start = start.upper().replace(" AM", "").replace(" PM", "").strip()
+            end = end.upper().replace(" AM", "").replace(" PM", "").strip()
             
-            # Return it exactly how the UI expects to read it
+            if len(start) > 5: start = start[:5]
+            if len(end) > 5: end = end[:5]
+            
             working_hours[day] = {"start": start, "end": end}
             
     return working_hours
