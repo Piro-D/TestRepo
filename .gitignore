@@ -14,3 +14,4 @@ task_estimates.json
 .env
 token.json
 user_settings.json
+mlruns/

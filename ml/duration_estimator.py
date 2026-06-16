@@ -48,13 +48,15 @@ def train_evaluate_and_save():
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=26)
 
-    model = RandomForestRegressor(
-        n_estimators=600,
-        max_depth=8,
-        min_samples_leaf=8,
-        random_state=26,
-        n_jobs=-1
-    )
+    params = {
+        "n_estimators": 600,
+        "max_depth": 8,
+        "min_samples_leaf": 8,
+        "random_state": 26,
+        "n_jobs": -1,
+    }
+
+    model = RandomForestRegressor(**params)
     model.fit(x_train, y_train)
 
     
@@ -77,6 +79,18 @@ def train_evaluate_and_save():
     joblib.dump(model, MODELS_DIR / 'duration_model.pkl')
     joblib.dump(le_task, MODELS_DIR / 'encoder_task_type.pkl')
     print(f"Model and Encoders saved to {MODELS_DIR}\n")
+
+    return {
+        "model": model,
+        "encoder": le_task,
+        "params": params,
+        "metrics": {
+            "mae": mae,
+            "rmse": rmse,
+            "r2_score": r2,
+        },
+        "x_test": x_test,
+    }
 
 
 def load_model_objects():
@@ -155,10 +169,48 @@ def estimate_tasks_from_llm(tasks_list: list, buffer=1.2) -> list:
     return enriched_tasks
 
 
+# ML Flow Assignment
+
+def run_mlflow_pipeline():
+    import mlflow
+    import mlflow.sklearn
+
+    mlflow.set_experiment("ADHD Task Duration Estimation")
+
+    training_result = train_evaluate_and_save()
+    if training_result is None:
+        return
+
+    with mlflow.start_run():
+        mlflow.log_params(training_result["params"])
+        mlflow.log_metrics(training_result["metrics"])
+
+        model_info = mlflow.sklearn.log_model(
+            training_result["model"],
+            "duration_model",
+            input_example=training_result["x_test"].head(5),
+        )
+
+        mlflow.log_artifact(str(MODELS_DIR / "duration_model.pkl"))
+        mlflow.log_artifact(str(MODELS_DIR / "encoder_task_type.pkl"))
+        mlflow.log_artifact(str(DATA_PATH))
+
+        if config.CLEANED_DATASET_FILE.exists():
+            mlflow.log_artifact(str(config.CLEANED_DATASET_FILE))
+
+        mlflow.set_tag(
+            "Training Info",
+            "Random Forest model for ADHD task duration estimation",
+        )
+
+    return model_info
+
+
 # Testing of the Machine Learning Component
 if __name__ == "__main__":
-    train_evaluate_and_save()
+    run_mlflow_pipeline()
 
     print("SAMPLE PREDICTION")
     result = predict_duration_adhd(7200, 5, "coding")
     print(f"Suggested Duration: {result} minutes")
+
