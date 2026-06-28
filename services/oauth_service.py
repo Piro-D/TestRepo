@@ -17,7 +17,9 @@ LOCAL_REDIRECT_URI = "http://localhost:8080/oauth2callback"
 
 
 def is_local_development():
-    return os.getenv("FLASK_ENV") == "development"
+    """Check if running in local development mode (not in Azure)."""
+    # Azure App Service sets WEBSITE_SITE_NAME environment variable
+    return not os.getenv("WEBSITE_SITE_NAME")
 
 
 def get_client_config():
