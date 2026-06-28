@@ -171,46 +171,48 @@ def estimate_tasks_from_llm(tasks_list: list, buffer=1.2) -> list:
 
 # ML Flow Assignment
 
-def run_mlflow_pipeline():
-    import mlflow
-    import mlflow.sklearn
+# For the ML_Flow, please uncomment the following code and run "pip install mlflow" in the terminal
 
-    mlflow.set_experiment("ADHD Task Duration Estimation")
+# def run_mlflow_pipeline():
+#     import mlflow
+#     import mlflow.sklearn
 
-    training_result = train_evaluate_and_save()
-    if training_result is None:
-        return
+#     mlflow.set_experiment("ADHD Task Duration Estimation")
 
-    with mlflow.start_run():
-        mlflow.log_params(training_result["params"])
-        mlflow.log_metrics(training_result["metrics"])
+#     training_result = train_evaluate_and_save()
+#     if training_result is None:
+#         return
 
-        model_info = mlflow.sklearn.log_model(
-            training_result["model"],
-            "duration_model",
-            input_example=training_result["x_test"].head(5),
-        )
+#     with mlflow.start_run():
+#         mlflow.log_params(training_result["params"])
+#         mlflow.log_metrics(training_result["metrics"])
 
-        mlflow.log_artifact(str(MODELS_DIR / "duration_model.pkl"))
-        mlflow.log_artifact(str(MODELS_DIR / "encoder_task_type.pkl"))
-        mlflow.log_artifact(str(DATA_PATH))
+#         model_info = mlflow.sklearn.log_model(
+#             training_result["model"],
+#             "duration_model",
+#             input_example=training_result["x_test"].head(5),
+#         )
 
-        if config.CLEANED_DATASET_FILE.exists():
-            mlflow.log_artifact(str(config.CLEANED_DATASET_FILE))
+#         mlflow.log_artifact(str(MODELS_DIR / "duration_model.pkl"))
+#         mlflow.log_artifact(str(MODELS_DIR / "encoder_task_type.pkl"))
+#         mlflow.log_artifact(str(DATA_PATH))
 
-        mlflow.set_tag(
-            "Training Info",
-            "Random Forest model for ADHD task duration estimation",
-        )
+#         if config.CLEANED_DATASET_FILE.exists():
+#             mlflow.log_artifact(str(config.CLEANED_DATASET_FILE))
 
-    return model_info
+#         mlflow.set_tag(
+#             "Training Info",
+#             "Random Forest model for ADHD task duration estimation",
+#         )
+
+#     return model_info
 
 
-# Testing of the Machine Learning Component
-if __name__ == "__main__":
-    run_mlflow_pipeline()
+# # Testing of the Machine Learning Component
+# if __name__ == "__main__":
+#     run_mlflow_pipeline()
 
-    print("SAMPLE PREDICTION")
-    result = predict_duration_adhd(7200, 5, "coding")
-    print(f"Suggested Duration: {result} minutes")
+#     print("SAMPLE PREDICTION")
+#     result = predict_duration_adhd(7200, 5, "coding")
+#     print(f"Suggested Duration: {result} minutes")
 

@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path # 🌟 ADDED: Required for the absolute path
@@ -8,7 +9,13 @@ from flask import Flask, redirect, render_template, request, session, url_for
 import config
 from ml.service import decompose_document, estimate_duration, run_ml_decomposition
 from services.calendar_service import push_to_calendar
-from services.oauth_service import get_authorization_url, handle_oauth_callback
+from services.oauth_service import (
+    get_authorization_url,
+    handle_oauth_callback,
+    save_oauth_state,
+    load_oauth_state,
+    clear_oauth_state,
+)
 from services.state_service import build_working_hours, load_state, save_state
 from services.upload_utils import remove_file, save_upload
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -20,6 +27,12 @@ app.config["UPLOAD_FOLDER"] = str(config.UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+
+@app.before_request
+def force_localhost():
+    if request.host.startswith("127.0.0.1"):
+        return redirect(request.url.replace("127.0.0.1", "localhost", 1), code=301)
 
 
 def redirect_home(message=None, tab="pipeline"):
@@ -64,9 +77,9 @@ def append_tasks(tasks, new_tasks):
 
 
 def save_feedback(ratings, comments):
-    # 🌟 THE FIX: Hardcoding the absolute Azure path to escape the temporary RAM
-    feedback_path = Path("/home/site/wwwroot/feedback.json")
-    
+    feedback_path = Path(config.FEEDBACK_FILE)
+    feedback_path.parent.mkdir(parents=True, exist_ok=True)
+
     feedback_entries = []
     if feedback_path.exists():
         try:
@@ -124,6 +137,7 @@ def authorize():
         authorization_url, state, code_verifier = get_authorization_url()
         session["state"] = state
         session["code_verifier"] = code_verifier
+        save_oauth_state(state, code_verifier)
         return redirect(authorization_url)
     except Exception as exc:
         return redirect_home(f"Google OAuth Error: {exc}")
@@ -132,14 +146,20 @@ def authorize():
 @app.route("/oauth2callback")
 def oauth2callback():
     try:
+        state = session.get("state")
+        code_verifier = session.get("code_verifier")
+        if not state or not code_verifier:
+            state, code_verifier = load_oauth_state()
+
         credentials = handle_oauth_callback(
             request.url,
-            session.get("state"),
-            session.get("code_verifier"),
+            state,
+            code_verifier,
         )
         session["credentials"] = credentials
         session.pop("state", None)
         session.pop("code_verifier", None)
+        clear_oauth_state()
         return redirect(url_for("index"))
     except Exception as exc:
         return redirect_home(f"OAuth Callback Error: {exc}")
@@ -311,4 +331,4 @@ def tool_schedule():
 
 
 if __name__ == "__main__":
-    app.run(port=8080)
+    app.run(host="localhost", port=8080)

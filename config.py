@@ -7,9 +7,14 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 
-RUNTIME_DIR = BASE_DIR / "instance"
-ARTIFACTS_DIR = BASE_DIR / "artifacts"
-UPLOAD_FOLDER = BASE_DIR / "uploads"
+if os.getenv("WEBSITE_SITE_NAME"):
+    RUNTIME_DIR = Path("/home/data")
+    ARTIFACTS_DIR = RUNTIME_DIR / "artifacts"
+    UPLOAD_FOLDER = RUNTIME_DIR / "uploads"
+else:
+    RUNTIME_DIR = BASE_DIR / "instance"
+    ARTIFACTS_DIR = BASE_DIR / "artifacts"
+    UPLOAD_FOLDER = BASE_DIR / "uploads"
 
 for directory in (RUNTIME_DIR, ARTIFACTS_DIR, UPLOAD_FOLDER):
     directory.mkdir(exist_ok=True)
